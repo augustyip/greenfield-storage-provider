@@ -18,6 +18,7 @@ var _ ReceivePieceTask = (*NullTask)(nil)
 var _ DownloadObjectTask = (*NullTask)(nil)
 var _ ChallengePieceTask = (*NullTask)(nil)
 var _ GCTask = (*NullTask)(nil)
+var _ GCObjectTask = (*NullTask)(nil)
 var _ GCZombiePieceTask = (*NullTask)(nil)
 var _ GCMetaTask = (*NullTask)(nil)
 
@@ -53,8 +54,8 @@ func (*NullTask) GetObjectInfo() *storagetypes.ObjectInfo                       
 func (*NullTask) SetObjectInfo(*storagetypes.ObjectInfo)                                {}
 func (*NullTask) GetStorageParams() *storagetypes.Params                                { return nil }
 func (*NullTask) SetStorageParams(*storagetypes.Params)                                 {}
-func (*NullTask) GetGCZombiePieceStatus() (uint64, uint64)                              { return 0, 0 }
-func (*NullTask) SetGCZombiePieceStatus(uint64, uint64)                                 {}
+func (*NullTask) GetGCZombiePieceProgress() (uint64, uint64)                            { return 0, 0 }
+func (*NullTask) SetGCZombiePieceProgress(uint64, uint64)                               {}
 func (*NullTask) GetGCMetaStatus() (uint64, uint64)                                     { return 0, 0 }
 func (*NullTask) SetGCMetaStatus(uint64, uint64)                                        {}
 func (*NullTask) InitApprovalCreateBucketTask(*storagetypes.MsgCreateBucket, TPriority) {}
@@ -122,3 +123,17 @@ func (*NullTask) SetPieceHash([][]byte)                  {}
 func (*NullTask) GetPieceDataSize() int64                { return 0 }
 func (*NullTask) SetPieceDataSize(int64)                 {}
 func (*NullTask) GetSignBytes() []byte                   { return nil }
+
+func (*NullTask) InitGCObjectTask(TPriority, uint64, uint64, int64) {}
+
+func (*NullTask) InitGCZombiePieceTask(TPriority, uint64, uint64, int64) {}
+func (*NullTask) SetStartBlockNumber(uint64)                             {}
+func (*NullTask) GetStartBlockNumber() uint64                            { return 0 }
+func (*NullTask) SetEndBlockNumber(uint64)                               {}
+func (*NullTask) GetEndBlockNumber() uint64                              { return 0 }
+func (*NullTask) SetCurrentBlockNumber(uint64)                           {}
+func (*NullTask) GetCurrentBlockNumber() uint64                          { return 0 }
+func (*NullTask) GetLastDeletedObjectId() uint64                         { return 0 }
+func (*NullTask) SetLastDeletedObjectId(uint64)                          {}
+func (*NullTask) GetGCObjectProgress() (uint64, uint64)                  { return 0, 0 }
+func (*NullTask) SetGCObjectProgress(uint64, uint64)                     {}

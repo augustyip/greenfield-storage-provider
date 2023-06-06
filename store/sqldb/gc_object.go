@@ -18,7 +18,7 @@ func (s *SpDBImpl) InsertGCObjectProgress(taskKey string, gcMeta *spdb.GCObjectM
 		CreateTimestampSecond: GetCurrentUnixTime(),
 		UpdateTimestampSecond: GetCurrentUnixTime(),
 	}); result.Error != nil || result.RowsAffected != 1 {
-		return fmt.Errorf("failed to insert gc record: %s", result.Error)
+		return fmt.Errorf("failed to insert gc object record: %s", result.Error)
 	}
 	return nil
 }
@@ -36,12 +36,12 @@ func (s *SpDBImpl) UpdateGCObjectProgress(gcMeta *spdb.GCObjectMeta) error {
 		LastDeletedObjectID:   gcMeta.LastDeletedObjectID,
 		UpdateTimestampSecond: GetCurrentUnixTime(),
 	}); result.Error != nil {
-		return fmt.Errorf("failed to update gc task record: %s", result.Error)
+		return fmt.Errorf("failed to update gc object record: %s", result.Error)
 	}
 	return nil
 }
 
-func (s *SpDBImpl) GetGCMetasToGC(limit int) ([]*spdb.GCObjectMeta, error) {
+func (s *SpDBImpl) GetGCMetasToGCObject(limit int) ([]*spdb.GCObjectMeta, error) {
 	var (
 		result        *gorm.DB
 		gcProgresses  []GCObjectProgressTable
@@ -49,7 +49,7 @@ func (s *SpDBImpl) GetGCMetasToGC(limit int) ([]*spdb.GCObjectMeta, error) {
 	)
 	result = s.db.Order("update_timestamp_second DESC").Limit(limit).Find(&gcProgresses)
 	if result.Error != nil {
-		return nil, fmt.Errorf("failed to query gc table: %s", result.Error)
+		return nil, fmt.Errorf("failed to query gc object table: %s", result.Error)
 	}
 	for _, g := range gcProgresses {
 		returnGCMetas = append(returnGCMetas, &spdb.GCObjectMeta{

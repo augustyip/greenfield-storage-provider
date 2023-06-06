@@ -33,7 +33,7 @@ func (r *ReceiveModular) HandleReceivePieceTask(ctx context.Context, task task.R
 		if err != nil {
 			task.SetError(err)
 		}
-		log.CtxDebugw(ctx, task.Info())
+		log.CtxDebug(ctx, task.Info())
 	}()
 
 	if task == nil || task.GetObjectInfo() == nil {
@@ -86,7 +86,7 @@ func (r *ReceiveModular) HandleDoneReceivePieceTask(ctx context.Context, task ta
 		if err != nil {
 			task.SetError(err)
 		}
-		log.CtxDebugw(ctx, task.Info())
+		log.CtxDebug(ctx, task.Info())
 	}()
 
 	if task == nil || task.GetObjectInfo() == nil {
@@ -99,11 +99,6 @@ func (r *ReceiveModular) HandleDoneReceivePieceTask(ctx context.Context, task ta
 		return nil, nil, ErrExceedTask
 	}
 	defer r.receiveQueue.PopByKey(task.Key())
-	if task == nil || task.GetObjectInfo() == nil {
-		log.CtxErrorw(ctx, "failed to done receive task, pointer dangling")
-		err = ErrDanglingTask
-		return nil, nil, ErrDanglingTask
-	}
 	segmentCount := r.baseApp.PieceOp().SegmentPieceCount(task.GetObjectInfo().GetPayloadSize(),
 		task.GetStorageParams().VersionedParams.GetMaxSegmentSize())
 	checksums, err := r.baseApp.GfSpDB().GetAllReplicatePieceChecksum(
@@ -114,7 +109,8 @@ func (r *ReceiveModular) HandleDoneReceivePieceTask(ctx context.Context, task ta
 		return nil, nil, ErrGfSpDB
 	}
 	if len(checksums) != int(segmentCount) {
-		log.CtxErrorw(ctx, "replicate piece unfinished")
+		log.CtxErrorw(ctx, "replicate piece unfinished", "expected_piece_checksum_counter", segmentCount,
+			"real_piece_checksum_counter", len(checksums))
 		err = ErrUnfinishedTask
 		return nil, nil, ErrUnfinishedTask
 	}

@@ -9,11 +9,13 @@ import (
 
 	"github.com/bnb-chain/greenfield-storage-provider/base/types/gfsperrors"
 	"github.com/bnb-chain/greenfield-storage-provider/core/module"
+	"github.com/bnb-chain/greenfield-storage-provider/core/spdb"
 	coretask "github.com/bnb-chain/greenfield-storage-provider/core/task"
 	"github.com/bnb-chain/greenfield-storage-provider/modular/manager"
 	"github.com/bnb-chain/greenfield-storage-provider/modular/metadata/types"
 	"github.com/bnb-chain/greenfield-storage-provider/pkg/log"
 	"github.com/bnb-chain/greenfield-storage-provider/pkg/metrics"
+	"github.com/bnb-chain/greenfield-storage-provider/util"
 	storagetypes "github.com/bnb-chain/greenfield/x/storage/types"
 )
 
@@ -264,6 +266,39 @@ func (e *ExecuteModular) HandleGCObjectTask(ctx context.Context, task coretask.G
 
 func (e *ExecuteModular) HandleGCZombiePieceTask(ctx context.Context, task coretask.GCZombiePieceTask) {
 	log.CtxWarn(ctx, "gc zombie piece future support")
+	var (
+		err                  error
+		integrityMetas       []*spdb.IntegrityMeta
+		currentStartObjectID uint64
+		currentEndObjectID   uint64
+	)
+
+	// TODO:
+	// scan signature db,
+
+	lastDeletedObjectID, _ := task.GetGCZombiePieceProgress()
+	currentStartObjectID = lastDeletedObjectID + 1
+	integrityMetas, err = e.baseApp.GfSpDB().ScanObjectIntegrity(currentStartObjectID, 1000)
+	if err != nil {
+		log.CtxErrorw(ctx, "failed to scan integrity metas", "task_info", task.Info(), "error", err)
+		return
+	}
+	if len(integrityMetas) == 0 {
+		log.CtxErrorw(ctx, "has no integrity metas", "task_info", task.Info())
+	}
+	currentEndObjectID = integrityMetas[len(integrityMetas)-1].ObjectID
+	for _, meta := range integrityMetas {
+		// diff with chain. delete integrity hash and piece if it is not existed in the chain,
+		_, queryErr := e.baseApp.Consensus().QueryObjectInfoByID(context.Background(), util.Uint64ToString(meta.ObjectID))
+		if queryErr != nil && strings.Contains(queryErr.Error(), "No such object") {
+			// TODO: gc
+			// primary and secondary
+		}
+	}
+	// TODO: query piece hash table.[startobjectid, endobjectid]
+	// only include secondary
+	_ = currentEndObjectID
+
 }
 
 func (e *ExecuteModular) HandleGCMetaTask(ctx context.Context, task coretask.GCMetaTask) {

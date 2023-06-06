@@ -82,6 +82,42 @@ func (s *SpDBImpl) DeleteObjectIntegrity(objectID uint64) error {
 	}).Error
 }
 
+func (s *SpDBImpl) ScanObjectIntegrity(startObjectID uint64, limit int) ([]*corespdb.IntegrityMeta, error) {
+	var (
+		result       *gorm.DB
+		queryReturns []IntegrityMetaTable
+		returns      []*corespdb.IntegrityMeta
+	)
+	result = s.db.Where("object_id >= ?", startObjectID).Limit(limit).Find(&queryReturns)
+	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		return returns, nil
+	}
+	if result.Error != nil {
+		return nil, fmt.Errorf("failed to read object integrity table: %s", result.Error)
+	}
+	for _, q := range queryReturns {
+		integrityChecksum, err := hex.DecodeString(q.IntegrityChecksum)
+		if err != nil {
+			return nil, err
+		}
+		signature, err := hex.DecodeString(q.Signature)
+		if err != nil {
+			return nil, err
+		}
+		pieceChecksumList, err := util.StringToBytesSlice(q.PieceChecksumList)
+		if err != nil {
+			return nil, err
+		}
+		returns = append(returns, &corespdb.IntegrityMeta{
+			ObjectID:          q.ObjectID,
+			IntegrityChecksum: integrityChecksum,
+			Signature:         signature,
+			PieceChecksumList: pieceChecksumList,
+		})
+	}
+	return returns, nil
+}
+
 // GetReplicatePieceChecksum gets replicate piece checksum.
 func (s *SpDBImpl) GetReplicatePieceChecksum(objectID uint64, replicateIdx uint32, pieceIdx uint32) ([]byte, error) {
 	var (

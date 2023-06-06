@@ -124,8 +124,8 @@ message GfSpGCObjectTask {
 
 message GfSpGCZombiePieceTask {
   GfSpTask task = 1;
-  uint64 object_id = 2;
-  uint64 delete_count = 3;
+  uint64 last_deleted_object_id = 2;
+  uint64 deleted_count = 3;
   bool running = 4;
 }
 

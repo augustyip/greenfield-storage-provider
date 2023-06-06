@@ -151,6 +151,16 @@ func (m *GfSpGCObjectTask) SetLastDeletedObjectId(object uint64) {
 	m.LastDeletedObjectId = object
 }
 
+func (m *GfSpGCZombiePieceTask) InitGCZombiePieceTask(priority coretask.TPriority, lastDeletedObjectID uint64,
+	deletedCount uint64, timeout int64) {
+	m.GetTask().SetPriority(priority)
+	m.GetTask().SetCreateTime(time.Now().Unix())
+	m.GetTask().SetUpdateTime(time.Now().Unix())
+	m.GetTask().SetTimeout(timeout)
+	m.LastDeletedObjectId = lastDeletedObjectID
+	m.DeletedCount = deletedCount
+}
+
 func (m *GfSpGCZombiePieceTask) Key() coretask.TKey {
 	return GfSpGCZombiePieceTaskKey(m.GetCreateTime())
 }
@@ -249,13 +259,13 @@ func (m *GfSpGCZombiePieceTask) SetError(err error) {
 	m.GetTask().SetError(err)
 }
 
-func (m *GfSpGCZombiePieceTask) GetGCZombiePieceStatus() (uint64, uint64) {
-	return m.GetObjectId(), m.GetDeleteCount()
+func (m *GfSpGCZombiePieceTask) GetGCZombiePieceProgress() (uint64, uint64) {
+	return m.GetLastDeletedObjectId(), m.GetDeletedCount()
 }
 
-func (m *GfSpGCZombiePieceTask) SetGCZombiePieceStatus(object uint64, delete uint64) {
-	m.ObjectId = object
-	m.DeleteCount = delete
+func (m *GfSpGCZombiePieceTask) SetGCZombiePieceProgress(object uint64, delete uint64) {
+	m.LastDeletedObjectId = object
+	m.DeletedCount = delete
 }
 
 func (m *GfSpGCMetaTask) Key() coretask.TKey {

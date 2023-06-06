@@ -129,7 +129,7 @@ func (r *MetadataModular) GfSpGetBucketByBucketName(ctx context.Context, req *ty
 	return resp, nil
 }
 
-// GfSpGetBucketByBucketID get buckets info by by a bucket id
+// GfSpGetBucketByBucketID get buckets info by a bucket id
 func (r *MetadataModular) GfSpGetBucketByBucketID(ctx context.Context, req *types.GfSpGetBucketByBucketIDRequest) (resp *types.GfSpGetBucketByBucketIDResponse, err error) {
 	var (
 		bucket *model.Bucket

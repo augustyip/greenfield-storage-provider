@@ -26,7 +26,7 @@ const (
 	// DefaultGlobalGCObjectParallel defines the default max parallel gc objects in SP
 	// system.
 	DefaultGlobalGCObjectParallel int = 4
-	// DefaultGlobalGCZombieParallel defines the default max parallel gc zonbie pieces
+	// DefaultGlobalGCZombieParallel defines the default max parallel gc zombie pieces
 	// in SP system.
 	DefaultGlobalGCZombieParallel int = 1
 	// DefaultGlobalGCMetaParallel defines the default max parallel gc meta db in SP

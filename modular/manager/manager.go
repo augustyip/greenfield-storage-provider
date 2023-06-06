@@ -212,11 +212,6 @@ func (m *ManageModular) ReleaseResource(ctx context.Context, span rcmgr.Resource
 }
 
 func (m *ManageModular) LoadTaskFromDB() error {
-	if !m.enableLoadTask {
-		log.Info("skip load tasks from db")
-		return nil
-	}
-
 	var (
 		err                          error
 		replicateMetas               []*spdb.UploadObjectMeta
@@ -224,96 +219,122 @@ func (m *ManageModular) LoadTaskFromDB() error {
 		sealMetas                    []*spdb.UploadObjectMeta
 		generateSealTaskCounter      int
 		gcObjectMetas                []*spdb.GCObjectMeta
-		generateGCOjectTaskCounter   int
+		generateGCObjectTaskCounter  int
+		gcZombieMetas                []*spdb.GCZombieMeta
+		generateGCZombieTaskCounter  int
 	)
 
-	log.Info("start to load task from sp db")
+	if m.enableLoadTask {
+		log.Info("start to load task from sp db")
+		replicateMetas, err = m.baseApp.GfSpDB().GetUploadMetasToReplicate(m.loadTaskLimitToReplicate)
+		if err != nil {
+			log.Errorw("failed to load replicate task from sp db", "error", err)
+			return err
+		}
+		for _, meta := range replicateMetas {
+			objectInfo, queryErr := m.baseApp.Consensus().QueryObjectInfoByID(context.Background(), util.Uint64ToString(meta.ObjectID))
+			if queryErr != nil {
+				log.Errorw("failed to query object info and continue", "object_id", meta.ObjectID, "error", queryErr)
+				continue
+			}
 
-	replicateMetas, err = m.baseApp.GfSpDB().GetUploadMetasToReplicate(m.loadTaskLimitToReplicate)
-	if err != nil {
-		log.Errorw("failed to load replicate task from sp db", "error", err)
-		return err
-	}
-	for _, meta := range replicateMetas {
-		objectInfo, queryErr := m.baseApp.Consensus().QueryObjectInfoByID(context.Background(), util.Uint64ToString(meta.ObjectID))
-		if queryErr != nil {
-			log.Errorw("failed to query object info and continue", "object_id", meta.ObjectID, "error", queryErr)
-			continue
+			if objectInfo.GetObjectStatus() != storagetypes.OBJECT_STATUS_CREATED {
+				log.Infow("object is not in create status and continue", "object_info", objectInfo)
+				continue
+			}
+			storageParams, queryErr := m.baseApp.Consensus().QueryStorageParamsByTimestamp(context.Background(), objectInfo.GetCreateAt())
+			if queryErr != nil {
+				log.Errorw("failed to query storage param and continue", "object_id", meta.ObjectID, "error", queryErr)
+				continue
+			}
+			replicateTask := &gfsptask.GfSpReplicatePieceTask{}
+			replicateTask.InitReplicatePieceTask(objectInfo, storageParams, m.baseApp.TaskPriority(replicateTask),
+				m.baseApp.TaskTimeout(replicateTask, objectInfo.GetPayloadSize()), m.baseApp.TaskMaxRetry(replicateTask))
+			pushErr := m.replicateQueue.Push(replicateTask)
+			if pushErr != nil {
+				log.Errorw("failed to push replicate piece task to queue", "object_info", objectInfo, "error", pushErr)
+				continue
+			}
+			generateReplicateTaskCounter++
 		}
 
-		if objectInfo.GetObjectStatus() != storagetypes.OBJECT_STATUS_CREATED {
-			log.Infow("object is not in create status and continue", "object_info", objectInfo)
-			continue
+		sealMetas, err = m.baseApp.GfSpDB().GetUploadMetasToSeal(m.loadTaskLimitToSeal)
+		if err != nil {
+			log.Errorw("failed to load seal task from sp db", "error", err)
+			return err
 		}
-		storageParams, queryErr := m.baseApp.Consensus().QueryStorageParamsByTimestamp(context.Background(), objectInfo.GetCreateAt())
-		if queryErr != nil {
-			log.Errorw("failed to query storage param and continue", "object_id", meta.ObjectID, "error", queryErr)
-			continue
+		for _, meta := range sealMetas {
+			objectInfo, queryErr := m.baseApp.Consensus().QueryObjectInfoByID(context.Background(), util.Uint64ToString(meta.ObjectID))
+			if queryErr != nil {
+				log.Errorw("failed to query object info and continue", "object_id", meta.ObjectID, "error", queryErr)
+				continue
+			}
+			if objectInfo.GetObjectStatus() != storagetypes.OBJECT_STATUS_CREATED {
+				log.Infow("object is not in create status and continue", "object_info", objectInfo)
+				continue
+			}
+			storageParams, queryErr := m.baseApp.Consensus().QueryStorageParamsByTimestamp(context.Background(), objectInfo.GetCreateAt())
+			if queryErr != nil {
+				log.Errorw("failed to query storage param and continue", "object_id", meta.ObjectID, "error", queryErr)
+				continue
+			}
+			sealTask := &gfsptask.GfSpSealObjectTask{}
+			sealTask.InitSealObjectTask(objectInfo, storageParams, m.baseApp.TaskPriority(sealTask), meta.SecondaryAddresses,
+				meta.SecondarySignatures, m.baseApp.TaskTimeout(sealTask, 0), m.baseApp.TaskMaxRetry(sealTask))
+			pushErr := m.sealQueue.Push(sealTask)
+			if pushErr != nil {
+				log.Errorw("failed to push seal object task to queue", "object_info", objectInfo, "error", pushErr)
+				continue
+			}
+			generateSealTaskCounter++
 		}
-		replicateTask := &gfsptask.GfSpReplicatePieceTask{}
-		replicateTask.InitReplicatePieceTask(objectInfo, storageParams, m.baseApp.TaskPriority(replicateTask),
-			m.baseApp.TaskTimeout(replicateTask, objectInfo.GetPayloadSize()), m.baseApp.TaskMaxRetry(replicateTask))
-		pushErr := m.replicateQueue.Push(replicateTask)
-		if pushErr != nil {
-			log.Errorw("failed to push replicate piece task to queue", "object_info", objectInfo, "error", pushErr)
-			continue
+
+		gcObjectMetas, err = m.baseApp.GfSpDB().GetGCMetasToGCObject(m.loadTaskLimitToGC)
+		if err != nil {
+			log.Errorw("failed to load gc task from sp db", "error", err)
+			return err
 		}
-		generateReplicateTaskCounter++
+		for _, meta := range gcObjectMetas {
+			gcObjectTask := &gfsptask.GfSpGCObjectTask{}
+			gcObjectTask.InitGCObjectTask(m.baseApp.TaskPriority(gcObjectTask), meta.StartBlockHeight, meta.EndBlockHeight, m.baseApp.TaskTimeout(gcObjectTask, 0))
+			gcObjectTask.SetGCObjectProgress(meta.CurrentBlockHeight, meta.LastDeletedObjectID)
+			pushErr := m.gcObjectQueue.Push(gcObjectTask)
+			if pushErr != nil {
+				log.Errorw("failed to push gc object task to queue", "gc_object_task_meta", meta, "error", pushErr)
+				continue
+			}
+			generateGCObjectTaskCounter++
+			if meta.EndBlockHeight >= m.gcBlockHeight {
+				m.gcBlockHeight = meta.EndBlockHeight + 1
+			}
+		}
+
+		gcZombieMetas, err = m.baseApp.GfSpDB().GetGCMetasToGCZombie(1)
+		for _, meta := range gcZombieMetas {
+			gcZombieTask := &gfsptask.GfSpGCZombiePieceTask{}
+			gcZombieTask.InitGCZombiePieceTask(m.baseApp.TaskPriority(gcZombieTask), meta.LastDeletedObjectID, meta.GCZombieNumber, m.baseApp.TaskTimeout(gcZombieTask, 0))
+			pushErr := m.gcZombieQueue.Push(gcZombieTask)
+			if pushErr != nil {
+				log.Errorw("failed to push gc zombie task to queue", "gc_zombie_task_meta", meta, "error", pushErr)
+				continue
+			}
+			generateGCZombieTaskCounter++
+		}
+
+		log.Infow("end to load task from sp db", "replicate_task_number", generateReplicateTaskCounter,
+			"seal_task_number", generateSealTaskCounter, "gc_object_task_number", generateGCObjectTaskCounter,
+			"gc_zombie_task_number", generateGCZombieTaskCounter)
 	}
 
-	sealMetas, err = m.baseApp.GfSpDB().GetUploadMetasToSeal(m.loadTaskLimitToSeal)
-	if err != nil {
-		log.Errorw("failed to load seal task from sp db", "error", err)
-		return err
-	}
-	for _, meta := range sealMetas {
-		objectInfo, queryErr := m.baseApp.Consensus().QueryObjectInfoByID(context.Background(), util.Uint64ToString(meta.ObjectID))
-		if queryErr != nil {
-			log.Errorw("failed to query object info and continue", "object_id", meta.ObjectID, "error", queryErr)
-			continue
-		}
-		if objectInfo.GetObjectStatus() != storagetypes.OBJECT_STATUS_CREATED {
-			log.Infow("object is not in create status and continue", "object_info", objectInfo)
-			continue
-		}
-		storageParams, queryErr := m.baseApp.Consensus().QueryStorageParamsByTimestamp(context.Background(), objectInfo.GetCreateAt())
-		if queryErr != nil {
-			log.Errorw("failed to query storage param and continue", "object_id", meta.ObjectID, "error", queryErr)
-			continue
-		}
-		sealTask := &gfsptask.GfSpSealObjectTask{}
-		sealTask.InitSealObjectTask(objectInfo, storageParams, m.baseApp.TaskPriority(sealTask), meta.SecondaryAddresses,
-			meta.SecondarySignatures, m.baseApp.TaskTimeout(sealTask, 0), m.baseApp.TaskMaxRetry(sealTask))
-		pushErr := m.sealQueue.Push(sealTask)
-		if pushErr != nil {
-			log.Errorw("failed to push seal object task to queue", "object_info", objectInfo, "error", pushErr)
-			continue
-		}
-		generateSealTaskCounter++
+	// Currently only one gc zombie task is supported; in the future, it may support multi-tasks segmented by object id.
+	if m.gcZombieQueue.Len() == 0 {
+		gcZombieTask := &gfsptask.GfSpGCZombiePieceTask{}
+		gcZombieTask.InitGCZombiePieceTask(m.baseApp.TaskPriority(gcZombieTask), 0, 0, m.baseApp.TaskTimeout(gcZombieTask, 0))
+		pushErr := m.gcZombieQueue.Push(gcZombieTask)
+		log.Errorw("failed to push gc zombie task to queue", "error", pushErr)
+		return pushErr
 	}
 
-	gcObjectMetas, err = m.baseApp.GfSpDB().GetGCMetasToGC(m.loadTaskLimitToGC)
-	if err != nil {
-		log.Errorw("failed to load gc task from sp db", "error", err)
-		return err
-	}
-	for _, meta := range gcObjectMetas {
-		gcObjectTask := &gfsptask.GfSpGCObjectTask{}
-		gcObjectTask.InitGCObjectTask(m.baseApp.TaskPriority(gcObjectTask), meta.StartBlockHeight, meta.EndBlockHeight, m.baseApp.TaskTimeout(gcObjectTask, 0))
-		gcObjectTask.SetGCObjectProgress(meta.CurrentBlockHeight, meta.LastDeletedObjectID)
-		pushErr := m.gcObjectQueue.Push(gcObjectTask)
-		if pushErr != nil {
-			log.Errorw("failed to push gc object task to queue", "gc_object_task_meta", meta, "error", pushErr)
-			continue
-		}
-		generateGCOjectTaskCounter++
-		if meta.EndBlockHeight >= m.gcBlockHeight {
-			m.gcBlockHeight = meta.EndBlockHeight + 1
-		}
-	}
-
-	log.Infow("end to load task from sp db", "replicate_task_number", generateReplicateTaskCounter,
-		"seal_task_number", generateSealTaskCounter, "gc_object_task_number", generateGCOjectTaskCounter)
 	return nil
 }
 

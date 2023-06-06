@@ -43,7 +43,7 @@ func (e *ExecuteModular) HandleReplicatePieceTask(ctx context.Context, task core
 	approvals, err = e.AskReplicatePieceApproval(ctx, rAppTask, int(low),
 		int(high), e.askReplicateApprovalTimeout)
 	if err != nil {
-		log.CtxErrorw(ctx, "failed get approvals", "error", err)
+		log.CtxErrorw(ctx, "failed to get approvals", "error", err)
 		return
 	}
 	err = e.handleReplicatePiece(ctx, task, approvals)
@@ -175,7 +175,7 @@ func (e *ExecuteModular) handleReplicatePiece(ctx context.Context, rTask coretas
 		if finish {
 			rTask.SetSecondaryAddresses(secondaryAddresses)
 			rTask.SetSecondarySignatures(secondarySignatures)
-			log.CtxDebugw(ctx, "success to replicate all pieces")
+			log.CtxDebugw(ctx, "succeed to replicate all pieces")
 			return nil
 		}
 		for pIdx := uint32(0); pIdx < segCount; pIdx++ {
@@ -232,7 +232,7 @@ func (e *ExecuteModular) doReplicatePiece(ctx context.Context, waitGroup *sync.W
 			"piece_idx", pieceIdx, "error", err)
 		return
 	}
-	log.CtxDebugw(ctx, "success to replicate piece", "replicate_idx", replicateIdx,
+	log.CtxDebugw(ctx, "succeed to replicate piece", "replicate_idx", replicateIdx,
 		"piece_idx", pieceIdx)
 	return
 }

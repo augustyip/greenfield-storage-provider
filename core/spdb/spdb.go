@@ -33,9 +33,22 @@ type GCObjectProgressDB interface {
 	DeleteGCObjectProgress(taskKey string) error
 	// UpdateGCObjectProgress updates the gc object progress.
 	UpdateGCObjectProgress(gcMeta *GCObjectMeta) error
-	// GetGCMetasToGC queries the latest gc meta to continue gc.
+	// GetGCMetasToGCObject queries the latest gc meta to continue gc object.
 	// It is only used in startup.
-	GetGCMetasToGC(limit int) ([]*GCObjectMeta, error)
+	GetGCMetasToGCObject(limit int) ([]*GCObjectMeta, error)
+}
+
+// GCZombieProgressDB interface which records gc zombie object(failed during uploading) related progress.
+type GCZombieProgressDB interface {
+	// InsertGCZombieProgress inserts a new gc zombie progress.
+	InsertGCZombieProgress(taskKey string, gcZombie *GCZombieMeta) error
+	// DeleteGCZombieProgress deletes the gc zombie progress.
+	DeleteGCZombieProgress(taskKey string) error
+	// UpdateGCZombieProgress updates the gc zombie progress.
+	UpdateGCZombieProgress(gcMeta *GCZombieMeta) error
+	// GetGCMetasToGCZombie queries the latest gc meta to continue gc zombie.
+	// It is only used in startup.
+	GetGCMetasToGCZombie(limit int) ([]*GCZombieMeta, error)
 }
 
 // SignatureDB abstract object integrity interface.
@@ -49,6 +62,9 @@ type SignatureDB interface {
 	SetObjectIntegrity(integrity *IntegrityMeta) error
 	// DeleteObjectIntegrity deletes the integrity hash.
 	DeleteObjectIntegrity(objectID uint64) error
+	// ScanObjectIntegrity scans object integrity to diff with greenfield chain, returns [startObject, ...).
+	// The returned results are sorted in ascending order by object id.
+	ScanObjectIntegrity(startObjectID uint64, limit int) ([]*IntegrityMeta, error)
 	/*
 		Piece Signature is used to help replicate object's piece data to secondary sps, which is temporary.
 	*/
@@ -108,6 +124,7 @@ type OffChainAuthKeyDB interface {
 type SPDB interface {
 	UploadObjectProgressDB
 	GCObjectProgressDB
+	GCZombieProgressDB
 	SignatureDB
 	TrafficDB
 	SPInfoDB

@@ -492,12 +492,14 @@ type GCObjectTask interface {
 // the piece data meta is not on chain but the pieces has been store in piece store.
 type GCZombiePieceTask interface {
 	GCTask
-	// GetGCZombiePieceStatus returns the status of collecting zombie pieces, returns
+	// InitGCZombiePieceTask inits GCZombiePieceTask.
+	InitGCZombiePieceTask(priority TPriority, lastDeletedObjectID, deletedCounter uint64, timeout int64)
+	// GetGCZombiePieceProgress returns the status of collecting zombie pieces, returns
 	// the last deleted object id and the number that has been deleted.
-	GetGCZombiePieceStatus() (uint64, uint64)
-	// SetGCZombiePieceStatus sets the status of collecting zombie pieces, param
+	GetGCZombiePieceProgress() (uint64, uint64)
+	// SetGCZombiePieceProgress sets the status of collecting zombie pieces, param
 	// stands the last deleted object id and the has been deleted pieces number.
-	SetGCZombiePieceStatus(uint64, uint64)
+	SetGCZombiePieceProgress(uint64, uint64)
 }
 
 // The GCMetaTask is the interface to record the information for collecting the SP

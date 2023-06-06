@@ -34,6 +34,14 @@ type GCObjectMeta struct {
 	LastDeletedObjectID uint64
 }
 
+// GCZombieMeta defines the gc zombie meta info.
+type GCZombieMeta struct {
+	TaskKey             string // will not be changed after initialization
+	StartObjectID       uint64 // will not be changed after initialization
+	LastDeletedObjectID uint64
+	GCZombieNumber      uint64
+}
+
 // IntegrityMeta defines the payload integrity hash and piece checksum with objectID.
 type IntegrityMeta struct {
 	ObjectID          uint64
