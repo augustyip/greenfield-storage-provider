@@ -4,13 +4,12 @@ import (
 	"context"
 	"io"
 
-	storagetypes "github.com/bnb-chain/greenfield/x/storage/types"
-
 	"github.com/bnb-chain/greenfield-storage-provider/base/types/gfspp2p"
 	"github.com/bnb-chain/greenfield-storage-provider/core/lifecycle"
 	"github.com/bnb-chain/greenfield-storage-provider/core/rcmgr"
 	"github.com/bnb-chain/greenfield-storage-provider/core/spdb"
 	"github.com/bnb-chain/greenfield-storage-provider/core/task"
+	storagetypes "github.com/bnb-chain/greenfield/x/storage/types"
 )
 
 // Modular is a common interface for submodules that are scheduled by the GfSp framework.

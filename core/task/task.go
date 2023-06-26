@@ -1,9 +1,8 @@
 package task
 
 import (
-	storagetypes "github.com/bnb-chain/greenfield/x/storage/types"
-
 	"github.com/bnb-chain/greenfield-storage-provider/core/rcmgr"
+	storagetypes "github.com/bnb-chain/greenfield/x/storage/types"
 )
 
 // Task is an abstract interface to describe the smallest unit of SP service how to interact.

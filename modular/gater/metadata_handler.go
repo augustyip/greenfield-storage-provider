@@ -9,9 +9,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/bnb-chain/greenfield/types/s3util"
-	permission_types "github.com/bnb-chain/greenfield/x/permission/types"
-	storage_types "github.com/bnb-chain/greenfield/x/storage/types"
 	"github.com/cosmos/gogoproto/jsonpb"
 	"github.com/ethereum/go-ethereum/common"
 
@@ -20,6 +17,9 @@ import (
 	"github.com/bnb-chain/greenfield-storage-provider/pkg/log"
 	"github.com/bnb-chain/greenfield-storage-provider/store/bsdb"
 	"github.com/bnb-chain/greenfield-storage-provider/util"
+	"github.com/bnb-chain/greenfield/types/s3util"
+	permission_types "github.com/bnb-chain/greenfield/x/permission/types"
+	storage_types "github.com/bnb-chain/greenfield/x/storage/types"
 )
 
 const (

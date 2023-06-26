@@ -7,11 +7,12 @@ import (
 	"sync"
 	"time"
 
+	chttp "github.com/cometbft/cometbft/rpc/client/http"
+
 	"github.com/bnb-chain/greenfield-storage-provider/base/types/gfsperrors"
 	"github.com/bnb-chain/greenfield-storage-provider/core/consensus"
 	"github.com/bnb-chain/greenfield-storage-provider/pkg/log"
 	chainClient "github.com/bnb-chain/greenfield/sdk/client"
-	chttp "github.com/cometbft/cometbft/rpc/client/http"
 )
 
 const (

@@ -1,6 +1,8 @@
 package bsdb
 
-import permtypes "github.com/bnb-chain/greenfield/x/permission/types"
+import (
+	permtypes "github.com/bnb-chain/greenfield/x/permission/types"
+)
 
 // ListObjectsResult represents the result of a List Objects operation.
 type ListObjectsResult struct {
