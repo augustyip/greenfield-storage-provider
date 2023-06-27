@@ -13,7 +13,7 @@ const (
 	DefaultExecutorAskTaskInterval int = 1
 	// DefaultExecutorAskReplicateApprovalTimeout defines the ask replicate piece approval
 	// timeout that send the request to the p2p node,
-	DefaultExecutorAskReplicateApprovalTimeout int64 = 10
+	DefaultExecutorAskReplicateApprovalTimeout int64 = 4
 	// DefaultExecutorAskReplicateApprovalExFactor defines the expanded factor for asking
 	// secondary SP.
 	// Example: need data chunk + data parity chunk numbers SPs as secondary, consider fault

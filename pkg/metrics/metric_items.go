@@ -54,15 +54,15 @@ var MetricsItems = []prometheus.Collector{
 	ManagerTime,
 	GCBlockNumberGauge,
 
+	// workflow metrics category
+	PerfApprovalTime,
+	PerfPutObjectTime,
+
 	// Perf workflow category
-	PerfUploadTimeHistogram,
-	PerfGetApprovalTimeHistogram,
 	PerfAuthTimeHistogram,
 	PerfReceivePieceTimeHistogram,
 	PerfGetObjectTimeHistogram,
 	PerfChallengeTimeHistogram,
-
-	GnfdChainHistogram,
 }
 
 // basic metrics items
@@ -211,25 +211,19 @@ var (
 
 // workflow metrics items
 var (
-// get approval
-// put object
-// get object
-// challenge piece
+	PerfApprovalTime = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "perf_approval_time",
+		Help:    "Track approval workflow costs.",
+		Buckets: prometheus.DefBuckets,
+	}, []string{"perf_approval_time"})
+	PerfPutObjectTime = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "perf_put_object_time",
+		Help:    "Track put object workflow costs.",
+		Buckets: prometheus.DefBuckets,
+	}, []string{"perf_put_object_time"})
 )
 
 var (
-	// PerfUploadTimeHistogram is used to perf upload workflow.
-	PerfUploadTimeHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
-		Name:    "perf_upload_time",
-		Help:    "Track upload workflow costs.",
-		Buckets: prometheus.DefBuckets,
-	}, []string{"perf_upload_time"})
-	// PerfGetApprovalTimeHistogram is used to perf get approval workflow
-	PerfGetApprovalTimeHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
-		Name:    "perf_get_approval_time",
-		Help:    "Track get approval workflow costs.",
-		Buckets: prometheus.DefBuckets,
-	}, []string{"perf_get_approval_time"})
 	PerfAuthTimeHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    "perf_auth_time",
 		Help:    "Track auth workflow costs.",
@@ -250,11 +244,4 @@ var (
 		Help:    "Track challenge piece workflow costs.",
 		Buckets: prometheus.DefBuckets,
 	}, []string{"perf_challenge_piece_time"})
-
-	// GnfdChainHistogram is used to record greenfield chain cost.
-	GnfdChainHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
-		Name:    "gnfd_chain_time",
-		Help:    "Track the greenfield chain api costs.",
-		Buckets: prometheus.DefBuckets,
-	}, []string{"gnfd_chain_time"})
 )

@@ -95,7 +95,8 @@ func (g *GateModular) getApprovalHandler(w http.ResponseWriter, r *http.Request)
 			authenticated, err = g.baseApp.GfSpClient().VerifyAuthentication(
 				reqCtx.Context(), coremodule.AuthOpAskCreateBucketApproval,
 				reqCtx.Account(), createBucketApproval.GetBucketName(), "")
-			metrics.PerfGetApprovalTimeHistogram.WithLabelValues("verify_authorize").Observe(time.Since(startVerifyAuthentication).Seconds())
+			metrics.PerfApprovalTime.WithLabelValues("gateway_create_bucket_auth_cost").Observe(time.Since(startVerifyAuthentication).Seconds())
+			metrics.PerfApprovalTime.WithLabelValues("gateway_create_bucket_auth_end").Observe(time.Since(startTime).Seconds())
 			if err != nil {
 				log.CtxErrorw(reqCtx.Context(), "failed to verify authentication", "error", err)
 				return
@@ -111,7 +112,8 @@ func (g *GateModular) getApprovalHandler(w http.ResponseWriter, r *http.Request)
 		var approvalTask coretask.ApprovalCreateBucketTask
 		startAskCreateBucketApproval := time.Now()
 		approved, approvalTask, err = g.baseApp.GfSpClient().AskCreateBucketApproval(reqCtx.Context(), task)
-		metrics.PerfGetApprovalTimeHistogram.WithLabelValues("ask_create_bucket_approval").Observe(time.Since(startAskCreateBucketApproval).Seconds())
+		metrics.PerfApprovalTime.WithLabelValues("gateway_create_bucket_ask_approval_cost").Observe(time.Since(startAskCreateBucketApproval).Seconds())
+		metrics.PerfApprovalTime.WithLabelValues("gateway_create_bucket_ask_approval_end").Observe(time.Since(startTime).Seconds())
 		if err != nil {
 			log.CtxErrorw(reqCtx.Context(), "failed to ask create bucket approval", "error", err)
 			return
@@ -142,7 +144,8 @@ func (g *GateModular) getApprovalHandler(w http.ResponseWriter, r *http.Request)
 				reqCtx.Context(), coremodule.AuthOpAskCreateObjectApproval,
 				reqCtx.Account(), createObjectApproval.GetBucketName(),
 				createObjectApproval.GetObjectName())
-			metrics.PerfGetApprovalTimeHistogram.WithLabelValues("verify_authorize").Observe(time.Since(startVerifyAuthentication).Seconds())
+			metrics.PerfApprovalTime.WithLabelValues("gateway_create_object_auth_cost").Observe(time.Since(startVerifyAuthentication).Seconds())
+			metrics.PerfApprovalTime.WithLabelValues("gateway_create_object_auth_end").Observe(time.Since(startTime).Seconds())
 			if err != nil {
 				log.CtxErrorw(reqCtx.Context(), "failed to verify authentication", "error", err)
 				return
@@ -158,7 +161,8 @@ func (g *GateModular) getApprovalHandler(w http.ResponseWriter, r *http.Request)
 		var approvedTask coretask.ApprovalCreateObjectTask
 		startAskCreateObjectApproval := time.Now()
 		approved, approvedTask, err = g.baseApp.GfSpClient().AskCreateObjectApproval(r.Context(), task)
-		metrics.PerfGetApprovalTimeHistogram.WithLabelValues("ask_create_object_approval").Observe(time.Since(startAskCreateObjectApproval).Seconds())
+		metrics.PerfApprovalTime.WithLabelValues("gateway_create_object_ask_approval_cost").Observe(time.Since(startAskCreateObjectApproval).Seconds())
+		metrics.PerfApprovalTime.WithLabelValues("gateway_create_object_ask_approval_end").Observe(time.Since(startTime).Seconds())
 		if err != nil {
 			log.CtxErrorw(reqCtx.Context(), "failed to ask object approval", "error", err)
 			return

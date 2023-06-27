@@ -159,7 +159,6 @@ func (e *ExecuteModular) AskTask(ctx context.Context) error {
 	case *gfsptask.GfSpReplicatePieceTask:
 		atomic.AddInt64(&e.doingReplicatePieceTaskCnt, 1)
 		defer atomic.AddInt64(&e.doingReplicatePieceTaskCnt, -1)
-		metrics.PerfUploadTimeHistogram.WithLabelValues("background_schedule_replicate_time").Observe(time.Since(time.Unix(t.GetCreateTime(), 0)).Seconds())
 		e.baseApp.GfSpDB().InsertUploadEvent(t.GetObjectInfo().Id.Uint64(), corespdb.ExecutorBeginTask, t.Key().String())
 		e.HandleReplicatePieceTask(ctx, t)
 		if t.Error() != nil {
