@@ -507,9 +507,9 @@ func (e *ExecuteModular) doRecoveryPiece(ctx context.Context, rTask coretask.Rec
 }
 
 // getObjectSecondaryEndpoints return the secondary sp endpoints list of the specific object
-func (g *ExecuteModular) getObjectSecondaryEndpoints(ctx context.Context, objectInfo *storagetypes.ObjectInfo) ([]string, error) {
+func (e *ExecuteModular) getObjectSecondaryEndpoints(ctx context.Context, objectInfo *storagetypes.ObjectInfo) ([]string, error) {
 	secondarySPAddrs := objectInfo.GetSecondarySpAddresses()
-	spList, err := g.baseApp.Consensus().ListSPs(ctx)
+	spList, err := e.baseApp.Consensus().ListSPs(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -526,13 +526,13 @@ func (g *ExecuteModular) getObjectSecondaryEndpoints(ctx context.Context, object
 	return secondaryEndpointList, nil
 }
 
-func (g *ExecuteModular) getObjectPrimarySPEndpoint(ctx context.Context, bucketName string) (string, error) {
-	spList, err := g.baseApp.Consensus().ListSPs(ctx)
+func (e *ExecuteModular) getObjectPrimarySPEndpoint(ctx context.Context, bucketName string) (string, error) {
+	spList, err := e.baseApp.Consensus().ListSPs(ctx)
 	if err != nil {
 		return "", err
 	}
 
-	bucketInfo, err := g.baseApp.Consensus().QueryBucketInfo(ctx, bucketName)
+	bucketInfo, err := e.baseApp.Consensus().QueryBucketInfo(ctx, bucketName)
 	if err != nil {
 		return "", err
 	}

@@ -35,7 +35,7 @@ func (g *GfSpBaseApp) GfSpUploadObject(stream gfspserver.GfSpUploadService_GfSpU
 		err           error
 		receiveSize   int
 	)
-
+	startTime := time.Now()
 	defer func() {
 		defer cancel()
 		if span != nil {
@@ -54,6 +54,11 @@ func (g *GfSpBaseApp) GfSpUploadObject(stream gfspserver.GfSpUploadService_GfSpU
 		}
 		if err != nil {
 			resp.Err = gfsperrors.MakeGfSpError(err)
+			metrics.ReqCounter.WithLabelValues(UploaderFailurePutObject).Inc()
+			metrics.ReqTime.WithLabelValues(UploaderFailurePutObject).Observe(time.Since(startTime).Seconds())
+		} else {
+			metrics.ReqCounter.WithLabelValues(UploaderSuccessPutObject).Inc()
+			metrics.ReqTime.WithLabelValues(UploaderSuccessPutObject).Observe(time.Since(startTime).Seconds())
 		}
 
 		closeTime := time.Now()

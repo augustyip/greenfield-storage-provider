@@ -39,6 +39,24 @@ const (
 	DefaultSleepInterval = 100
 )
 
+const (
+	ExeutorSuccessAskTask   = "executor_ask_task_success"
+	ExeutorFailureAskTask   = "executor_ask_task_failure"
+	ExeutorFailureAskNoTask = "executor_ask_no_task_failure"
+
+	ExeutorSuccessReplicateTask  = "executor_replicate_task_success"
+	ExeutorFailureReplicateTask  = "executor_replicate_task_failure"
+	ExeutorSuccessSealObjectTask = "executor_seal_object_task_success"
+	ExeutorFailureSealObjectTask = "executor_seal_object_task_failure"
+	ExeutorSuccessReceiveTask    = "executor_receive_task_success"
+	ExeutorFailureReceiveTask    = "executor_receive_task_failure"
+	ExeutorSuccessRecoveryTask   = "executor_recovery_task_success"
+	ExeutorFailureRecoveryTask   = "executor_recovery_task_failure"
+
+	ExeutorSuccessReportTask = "executor_report_task_to_manager_success"
+	ExeutorFailureReportTask = "executor_report_task_to_manager_failure"
+)
+
 func NewExecuteModular(app *gfspapp.GfSpBaseApp, cfg *gfspconfig.GfSpConfig) (coremodule.Modular, error) {
 	executor := &ExecuteModular{baseApp: app}
 	if err := DefaultExecutorOptions(executor, cfg); err != nil {

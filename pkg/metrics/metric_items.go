@@ -32,6 +32,11 @@ var MetricsItems = []prometheus.Collector{
 	GnfdChainCounter,
 	BlockHeightLagGauge,
 
+	// module metrics items
+	ReqCounter,
+	ReqTime,
+	ReqPieceSize,
+
 	// Perf workflow category
 	PerfUploadTimeHistogram,
 	PerfGetApprovalTimeHistogram,
@@ -39,15 +44,7 @@ var MetricsItems = []prometheus.Collector{
 	PerfReceivePieceTimeHistogram,
 	PerfGetObjectTimeHistogram,
 	PerfChallengeTimeHistogram,
-	// PieceStore metrics category
-	PutPieceTimeHistogram,
-	PutPieceTotalNumberCounter,
-	GetPieceTimeHistogram,
-	GetPieceTotalNumberCounter,
-	DeletePieceTimeHistogram,
-	DeletePieceTotalNumberCounter,
-	PieceUsageAmountGauge,
-	// Front module metrics category
+
 	UploadObjectSizeHistogram,
 	DownloadObjectSizeHistogram,
 	ChallengePieceSizeHistogram,
@@ -153,7 +150,7 @@ var (
 	SPDBCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "sp_db_counter",
 		Help: "Track total counter of operating spdb.",
-	}, []string{"sp_db_number"})
+	}, []string{"sp_db_counter"})
 
 	GnfdChainTime = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    "gnfd_chain_time",
@@ -168,6 +165,33 @@ var (
 		Name: "block_syncer_height",
 		Help: "Current block number of block syncer progress.",
 	}, []string{"block_syncer_height"})
+)
+
+// module metrics items, include gateway, approver, uploader, manager, task executor,
+// receiver, challenge, downloader
+var (
+	ReqCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "request_qps",
+		Help: "Track total request counter.",
+	}, []string{"request_qps"})
+	ReqTime = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "request_time",
+		Help:    "Track the request time.",
+		Buckets: prometheus.DefBuckets,
+	}, []string{"request_time"})
+	ReqPieceSize = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "request_piece_size",
+		Help:    "Track the request object piece payload size.",
+		Buckets: prometheus.DefBuckets,
+	}, []string{"request_piece_size"})
+)
+
+// workflow metrics items
+var (
+// get approval
+// put object
+// get object
+// challenge piece
 )
 
 var (
@@ -203,39 +227,6 @@ var (
 		Help:    "Track challenge piece workflow costs.",
 		Buckets: prometheus.DefBuckets,
 	}, []string{"perf_challenge_piece_time"})
-
-	// piece store metrics
-	PutPieceTimeHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
-		Name:    "put_piece_store_time",
-		Help:    "Track the time of putting piece data to piece store.",
-		Buckets: prometheus.DefBuckets,
-	}, []string{"put_piece_store_time"})
-	PutPieceTotalNumberCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "put_piece_store_number",
-		Help: "Track the total number of putting piece data to piece store.",
-	}, []string{"put_piece_store_number"})
-	GetPieceTimeHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
-		Name:    "get_piece_store_time",
-		Help:    "Track the time of getting piece data to piece store.",
-		Buckets: prometheus.DefBuckets,
-	}, []string{"get_piece_store_time"})
-	GetPieceTotalNumberCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "get_piece_store_number",
-		Help: "Track the total number of getting piece data to piece store.",
-	}, []string{"get_piece_store_number"})
-	DeletePieceTimeHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
-		Name:    "delete_piece_store_time",
-		Help:    "Track the time of deleting piece data to piece store.",
-		Buckets: prometheus.DefBuckets,
-	}, []string{"delete_piece_store_time"})
-	DeletePieceTotalNumberCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "delete_piece_store_number",
-		Help: "Track the total number of deleting piece data to piece store.",
-	}, []string{"delete_piece_store_number"})
-	PieceUsageAmountGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "usage_amount_piece_store",
-		Help: "Track usage amount of piece store.",
-	}, []string{"usage_amount_piece_store"})
 
 	// front module metrics
 	UploadObjectSizeHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{

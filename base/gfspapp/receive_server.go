@@ -19,9 +19,18 @@ var (
 )
 
 func (g *GfSpBaseApp) GfSpReplicatePiece(ctx context.Context, req *gfspserver.GfSpReplicatePieceRequest) (
-	*gfspserver.GfSpReplicatePieceResponse, error) {
+	resp *gfspserver.GfSpReplicatePieceResponse, err error) {
 	startTime := time.Now()
-	defer metrics.PerfReceivePieceTimeHistogram.WithLabelValues("receive_piece_server_total_time").Observe(time.Since(startTime).Seconds())
+	defer func() {
+		if err != nil {
+			metrics.ReqCounter.WithLabelValues(ReceiverFailureReplicatePiece).Inc()
+			metrics.ReqTime.WithLabelValues(ReceiverFailureReplicatePiece).Observe(time.Since(startTime).Seconds())
+		} else {
+			metrics.ReqCounter.WithLabelValues(ReceiverSuccessReplicatePiece).Inc()
+			metrics.ReqTime.WithLabelValues(ReceiverSuccessReplicatePiece).Observe(time.Since(startTime).Seconds())
+		}
+	}()
+
 	task := req.GetReceivePieceTask()
 	if task == nil {
 		log.Error("failed to receive piece due to task pointer dangling")
@@ -46,9 +55,18 @@ func (g *GfSpBaseApp) GfSpReplicatePiece(ctx context.Context, req *gfspserver.Gf
 }
 
 func (g *GfSpBaseApp) GfSpDoneReplicatePiece(ctx context.Context, req *gfspserver.GfSpDoneReplicatePieceRequest) (
-	*gfspserver.GfSpDoneReplicatePieceResponse, error) {
+	resp *gfspserver.GfSpDoneReplicatePieceResponse, err error) {
 	startTime := time.Now()
-	defer metrics.PerfReceivePieceTimeHistogram.WithLabelValues("receive_piece_done_server_total_time").Observe(time.Since(startTime).Seconds())
+	defer func() {
+		if err != nil {
+			metrics.ReqCounter.WithLabelValues(ReceiverFailureDoneReplicatePiece).Inc()
+			metrics.ReqTime.WithLabelValues(ReceiverFailureDoneReplicatePiece).Observe(time.Since(startTime).Seconds())
+		} else {
+			metrics.ReqCounter.WithLabelValues(ReceiverSuccessDoneReplicatePiece).Inc()
+			metrics.ReqTime.WithLabelValues(ReceiverSuccessDoneReplicatePiece).Observe(time.Since(startTime).Seconds())
+		}
+	}()
+
 	task := req.GetReceivePieceTask()
 	if task == nil {
 		log.Error("failed to done receive piece due to task pointer dangling")
