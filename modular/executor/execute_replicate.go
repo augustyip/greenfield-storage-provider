@@ -22,11 +22,6 @@ import (
 	storagetypes "github.com/bnb-chain/greenfield/x/storage/types"
 )
 
-//ExecutorBeginSealTx                 = "executor_begin_seal_tx"
-//ExecutorEndSealTx                   = "executor_end_seal_tx"
-//ExecutorBeginConfirmSeal            = "executor_begin_confirm_seal"
-//ExecutorEndConfirmSeal              = "executor_end_confirm_seal"
-
 func (e *ExecuteModular) HandleReplicatePieceTask(ctx context.Context, task coretask.ReplicatePieceTask) {
 	var (
 		err       error
@@ -56,7 +51,12 @@ func (e *ExecuteModular) HandleReplicatePieceTask(ctx context.Context, task core
 	if err != nil {
 		e.baseApp.GfSpDB().InsertUploadEvent(task.GetObjectInfo().Id.Uint64(), spdb.ExecutorEndP2P, task.Key().String()+":"+err.Error())
 		log.CtxErrorw(ctx, "failed get approvals", "error", err)
+		metrics.ExecutorCounter.WithLabelValues(ExeutorFailureP2P).Inc()
+		metrics.ExecutorTime.WithLabelValues(ExeutorFailureP2P).Observe(time.Since(askReplicateApprovalTime).Seconds())
 		return
+	} else {
+		metrics.ExecutorCounter.WithLabelValues(ExeutorSuccessP2P).Inc()
+		metrics.ExecutorTime.WithLabelValues(ExeutorSuccessP2P).Observe(time.Since(askReplicateApprovalTime).Seconds())
 	}
 	e.baseApp.GfSpDB().InsertUploadEvent(task.GetObjectInfo().Id.Uint64(), spdb.ExecutorEndP2P, task.Key().String())
 	replicatePieceTotalTime := time.Now()
@@ -67,7 +67,12 @@ func (e *ExecuteModular) HandleReplicatePieceTask(ctx context.Context, task core
 	if err != nil {
 		e.baseApp.GfSpDB().InsertUploadEvent(task.GetObjectInfo().Id.Uint64(), spdb.ExecutorEndReplicateAllPiece, task.Key().String()+":"+err.Error())
 		log.CtxErrorw(ctx, "failed to replicate piece", "error", err)
+		metrics.ExecutorCounter.WithLabelValues(ExeutorFailureReplicateAllPiece).Inc()
+		metrics.ExecutorTime.WithLabelValues(ExeutorFailureReplicateAllPiece).Observe(time.Since(replicatePieceTotalTime).Seconds())
 		return
+	} else {
+		metrics.ExecutorCounter.WithLabelValues(ExeutorSuccessReplicateAllPiece).Inc()
+		metrics.ExecutorTime.WithLabelValues(ExeutorSuccessReplicateAllPiece).Observe(time.Since(replicatePieceTotalTime).Seconds())
 	}
 	e.baseApp.GfSpDB().InsertUploadEvent(task.GetObjectInfo().Id.Uint64(), spdb.ExecutorEndReplicateAllPiece, task.Key().String())
 	log.CtxDebugw(ctx, "succeed to replicate all pieces")
@@ -187,9 +192,7 @@ func (e *ExecuteModular) handleReplicatePiece(ctx context.Context, rTask coretas
 					secondaryAddresses[rIdx] = approvals[rIdx].GetApprovedSpOperatorAddress()
 					secondarySignatures[rIdx] = signature
 					record[rIdx] = true
-					metrics.ReplicateSucceedCounter.WithLabelValues(e.Name()).Inc()
 				} else {
-					metrics.ReplicateFailedCounter.WithLabelValues(e.Name()).Inc()
 				}
 			}
 		}
@@ -247,10 +250,15 @@ func (e *ExecuteModular) handleReplicatePiece(ctx context.Context, rTask coretas
 func (e *ExecuteModular) doReplicatePiece(ctx context.Context, waitGroup *sync.WaitGroup, rTask coretask.ReplicatePieceTask,
 	approval coretask.ApprovalReplicatePieceTask, replicateIdx uint32, pieceIdx uint32, data []byte) (err error) {
 	var signature []byte
-	metrics.ReplicatePieceSizeCounter.WithLabelValues(e.Name()).Add(float64(len(data)))
 	startTime := time.Now()
 	defer func() {
-		metrics.ReplicatePieceTimeHistogram.WithLabelValues(e.Name()).Observe(time.Since(startTime).Seconds())
+		if err != nil {
+			metrics.ExecutorCounter.WithLabelValues(ExeutorFailureReplicateOnePiece).Inc()
+			metrics.ExecutorTime.WithLabelValues(ExeutorFailureReplicateOnePiece).Observe(time.Since(startTime).Seconds())
+		} else {
+			metrics.ExecutorCounter.WithLabelValues(ExeutorSuccessReplicateOnePiece).Inc()
+			metrics.ExecutorTime.WithLabelValues(ExeutorSuccessReplicateOnePiece).Observe(time.Since(startTime).Seconds())
+		}
 		waitGroup.Done()
 	}()
 	receive := &gfsptask.GfSpReceivePieceTask{}
@@ -294,6 +302,17 @@ func (e *ExecuteModular) doneReplicatePiece(ctx context.Context, rTask coretask.
 		signature     []byte
 		taskSignature []byte
 	)
+	startTime := time.Now()
+	defer func() {
+		if err != nil {
+			metrics.ExecutorCounter.WithLabelValues(ExeutorFailureDoneReplicatePiece).Inc()
+			metrics.ExecutorTime.WithLabelValues(ExeutorFailureDoneReplicatePiece).Observe(time.Since(startTime).Seconds())
+		} else {
+			metrics.ExecutorCounter.WithLabelValues(ExeutorSuccessDoneReplicatePiece).Inc()
+			metrics.ExecutorTime.WithLabelValues(ExeutorSuccessDoneReplicatePiece).Observe(time.Since(startTime).Seconds())
+		}
+	}()
+
 	receive := &gfsptask.GfSpReceivePieceTask{}
 	receive.InitReceivePieceTask(rTask.GetObjectInfo(), rTask.GetStorageParams(),
 		e.baseApp.TaskPriority(rTask), replicateIdx, -1, 0)

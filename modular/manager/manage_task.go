@@ -142,13 +142,21 @@ func (m *ManageModular) HandleDoneUploadObjectTask(ctx context.Context, task tas
 			log.CtxErrorw(ctx, "reports failed update object task", "task_info", task.Info(), "error", task.Error())
 			return nil
 		}()
+		metrics.ManagerCounter.WithLabelValues(ManagerFailureUpload).Inc()
+		metrics.ManagerTime.WithLabelValues(ManagerFailureUpload).Observe(
+			time.Since(time.Unix(task.GetCreateTime(), 0)).Seconds())
 		return nil
+	} else {
+		metrics.ManagerCounter.WithLabelValues(ManagerSuccessUpload).Inc()
+		metrics.ManagerTime.WithLabelValues(ManagerSuccessUpload).Observe(
+			time.Since(time.Unix(task.GetCreateTime(), 0)).Seconds())
 	}
 	replicateTask := &gfsptask.GfSpReplicatePieceTask{}
 	replicateTask.InitReplicatePieceTask(task.GetObjectInfo(), task.GetStorageParams(),
 		m.baseApp.TaskPriority(replicateTask),
 		m.baseApp.TaskTimeout(replicateTask, task.GetObjectInfo().GetPayloadSize()),
 		m.baseApp.TaskMaxRetry(replicateTask))
+	replicateTask.SetCreateTime(task.GetCreateTime())
 
 	startPushReplicateQueueTime := time.Now()
 	err := m.replicateQueue.Push(replicateTask)
@@ -279,8 +287,12 @@ func (m *ManageModular) HandleReplicatePieceTask(ctx context.Context, task task.
 	if task.Error() != nil {
 		log.CtxErrorw(ctx, "handler error replicate piece task", "task_info", task.Info(), "error", task.Error())
 		go m.handleFailedReplicatePieceTask(ctx, task)
+		metrics.ManagerCounter.WithLabelValues(ManagerFailureReplicate).Inc()
+		metrics.ManagerTime.WithLabelValues(ManagerFailureReplicate).Observe(
+			time.Since(time.Unix(task.GetUpdateTime(), 0)).Seconds())
 		return nil
 	}
+
 	m.replicateQueue.PopByKey(task.Key())
 	if m.TaskUploading(ctx, task) {
 		log.CtxErrorw(ctx, "replicate piece object task repeated")
@@ -288,7 +300,6 @@ func (m *ManageModular) HandleReplicatePieceTask(ctx context.Context, task task.
 	}
 	if task.GetSealed() {
 		go func() error {
-			metrics.SealObjectSucceedCounter.WithLabelValues(m.Name()).Inc()
 			log.CtxDebugw(ctx, "replicate piece object task has combined seal object task")
 			if err := m.baseApp.GfSpDB().UpdateUploadProgress(&spdb.UploadObjectMeta{
 				ObjectID:  task.GetObjectInfo().Id.Uint64(),
@@ -301,13 +312,22 @@ func (m *ManageModular) HandleReplicatePieceTask(ctx context.Context, task task.
 			// TODO: delete this upload db record?
 			return nil
 		}()
+		metrics.ManagerCounter.WithLabelValues(ManagerSuccessReplicateAndSeal).Inc()
+		metrics.ManagerTime.WithLabelValues(ManagerSuccessReplicateAndSeal).Observe(
+			time.Since(time.Unix(task.GetUpdateTime(), 0)).Seconds())
 		return nil
+	} else {
+		metrics.ManagerCounter.WithLabelValues(ManagerFailureReplicateAndSeal).Inc()
+		metrics.ManagerTime.WithLabelValues(ManagerFailureReplicateAndSeal).Observe(
+			time.Since(time.Unix(task.GetUpdateTime(), 0)).Seconds())
 	}
+
 	log.CtxDebugw(ctx, "replicate piece object task fails to combine seal object task", "task_info", task.Info())
 	sealObject := &gfsptask.GfSpSealObjectTask{}
 	sealObject.InitSealObjectTask(task.GetObjectInfo(), task.GetStorageParams(),
 		m.baseApp.TaskPriority(sealObject), task.GetSecondaryAddresses(), task.GetSecondarySignatures(),
 		m.baseApp.TaskTimeout(sealObject, 0), m.baseApp.TaskMaxRetry(sealObject))
+	sealObject.SetCreateTime(task.GetCreateTime())
 	err := m.sealQueue.Push(sealObject)
 	if err != nil {
 		log.CtxErrorw(ctx, "failed to push seal object task to queue", "task_info", task.Info(), "error", err)
@@ -346,6 +366,9 @@ func (m *ManageModular) handleFailedReplicatePieceTask(ctx context.Context, hand
 		err := m.replicateQueue.Push(handleTask)
 		log.CtxDebugw(ctx, "push task again to retry", "task_info", handleTask.Info(), "error", err)
 	} else {
+		metrics.ManagerCounter.WithLabelValues(ManagerCancelReplicate).Inc()
+		metrics.ManagerTime.WithLabelValues(ManagerCancelReplicate).Observe(
+			time.Since(time.Unix(handleTask.GetCreateTime(), 0)).Seconds())
 		if err := m.baseApp.GfSpDB().UpdateUploadProgress(&spdb.UploadObjectMeta{
 			ObjectID:         handleTask.GetObjectInfo().Id.Uint64(),
 			TaskState:        types.TaskState_TASK_STATE_REPLICATE_OBJECT_ERROR,
@@ -367,10 +390,16 @@ func (m *ManageModular) HandleSealObjectTask(ctx context.Context, task task.Seal
 	if task.Error() != nil {
 		log.CtxErrorw(ctx, "handler error seal object task", "task_info", task.Info(), "error", task.Error())
 		go m.handleFailedSealObjectTask(ctx, task)
+		metrics.ManagerCounter.WithLabelValues(ManagerFailureSeal).Inc()
+		metrics.ManagerTime.WithLabelValues(ManagerFailureSeal).Observe(
+			time.Since(time.Unix(task.GetUpdateTime(), 0)).Seconds())
 		return nil
+	} else {
+		metrics.ManagerCounter.WithLabelValues(ManagerSuccessSeal).Inc()
+		metrics.ManagerTime.WithLabelValues(ManagerSuccessSeal).Observe(
+			time.Since(time.Unix(task.GetUpdateTime(), 0)).Seconds())
 	}
 	go func() error {
-		metrics.SealObjectSucceedCounter.WithLabelValues(m.Name()).Inc()
 		m.sealQueue.PopByKey(task.Key())
 		if err := m.baseApp.GfSpDB().UpdateUploadProgress(&spdb.UploadObjectMeta{
 			ObjectID:  task.GetObjectInfo().Id.Uint64(),
@@ -404,6 +433,9 @@ func (m *ManageModular) handleFailedSealObjectTask(ctx context.Context, handleTa
 		log.CtxDebugw(ctx, "push task again to retry", "task_info", handleTask.Info(), "error", err)
 		return nil
 	} else {
+		metrics.ManagerCounter.WithLabelValues(ManagerCancelSeal).Inc()
+		metrics.ManagerTime.WithLabelValues(ManagerCancelSeal).Observe(
+			time.Since(time.Unix(handleTask.GetCreateTime(), 0)).Seconds())
 		if err := m.baseApp.GfSpDB().UpdateUploadProgress(&spdb.UploadObjectMeta{
 			ObjectID:         handleTask.GetObjectInfo().Id.Uint64(),
 			TaskState:        types.TaskState_TASK_STATE_SEAL_OBJECT_ERROR,
@@ -419,9 +451,15 @@ func (m *ManageModular) handleFailedSealObjectTask(ctx context.Context, handleTa
 func (m *ManageModular) HandleReceivePieceTask(ctx context.Context, task task.ReceivePieceTask) error {
 	if task.GetSealed() {
 		go m.receiveQueue.PopByKey(task.Key())
+		metrics.ManagerCounter.WithLabelValues(ManagerSuccessConfirmReceive).Inc()
+		metrics.ManagerTime.WithLabelValues(ManagerSuccessConfirmReceive).Observe(
+			time.Since(time.Unix(task.GetCreateTime(), 0)).Seconds())
 		log.CtxDebugw(ctx, "succeed to confirm receive piece seal on chain")
 	} else if task.Error() != nil {
 		go m.handleFailedReceivePieceTask(ctx, task)
+		metrics.ManagerCounter.WithLabelValues(ManagerFailureConfirmReceive).Inc()
+		metrics.ManagerTime.WithLabelValues(ManagerFailureConfirmReceive).Observe(
+			time.Since(time.Unix(task.GetCreateTime(), 0)).Seconds())
 		return nil
 	} else {
 		go func() {

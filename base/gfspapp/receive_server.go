@@ -43,8 +43,6 @@ func (g *GfSpBaseApp) GfSpReplicatePiece(ctx context.Context, req *gfspserver.Gf
 		return &gfspserver.GfSpReplicatePieceResponse{Err: ErrReceiveExhaustResource}, nil
 	}
 	defer span.Done()
-	metrics.ReceivePieceSizeHistogram.WithLabelValues(
-		g.receiver.Name()).Observe(float64(task.GetPieceSize()))
 	err = g.receiver.HandleReceivePieceTask(ctx, task, req.GetPieceData())
 	if err != nil {
 		log.CtxErrorw(ctx, "failed to replicate piece", "error", err)

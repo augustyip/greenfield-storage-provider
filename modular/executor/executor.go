@@ -157,7 +157,6 @@ func (e *ExecuteModular) AskTask(ctx context.Context) error {
 	ctx = log.WithValue(ctx, log.CtxKeyTask, askTask.Key().String())
 	switch t := askTask.(type) {
 	case *gfsptask.GfSpReplicatePieceTask:
-		metrics.ExecutorReplicatePieceTaskCounter.WithLabelValues(e.Name()).Inc()
 		atomic.AddInt64(&e.doingReplicatePieceTaskCnt, 1)
 		defer atomic.AddInt64(&e.doingReplicatePieceTaskCnt, -1)
 		metrics.PerfUploadTimeHistogram.WithLabelValues("background_schedule_replicate_time").Observe(time.Since(time.Unix(t.GetCreateTime(), 0)).Seconds())
@@ -173,7 +172,6 @@ func (e *ExecuteModular) AskTask(ctx context.Context) error {
 			e.baseApp.GfSpDB().InsertUploadEvent(t.GetObjectInfo().Id.Uint64(), corespdb.ExecutorEndTask, t.Key().String())
 		}
 	case *gfsptask.GfSpSealObjectTask:
-		metrics.ExecutorSealObjectTaskCounter.WithLabelValues(e.Name()).Inc()
 		atomic.AddInt64(&e.doingSpSealObjectTaskCnt, 1)
 		defer atomic.AddInt64(&e.doingSpSealObjectTaskCnt, -1)
 		e.baseApp.GfSpDB().InsertUploadEvent(t.GetObjectInfo().Id.Uint64(), corespdb.ExecutorBeginTask, t.Key().String())
@@ -188,7 +186,6 @@ func (e *ExecuteModular) AskTask(ctx context.Context) error {
 			e.baseApp.GfSpDB().InsertUploadEvent(t.GetObjectInfo().Id.Uint64(), corespdb.ExecutorEndTask, t.Key().String())
 		}
 	case *gfsptask.GfSpReceivePieceTask:
-		metrics.ExecutorReceiveTaskCounter.WithLabelValues(e.Name()).Inc()
 		atomic.AddInt64(&e.doingReceivePieceTaskCnt, 1)
 		defer atomic.AddInt64(&e.doingReceivePieceTaskCnt, -1)
 		e.HandleReceivePieceTask(ctx, t)
@@ -200,22 +197,18 @@ func (e *ExecuteModular) AskTask(ctx context.Context) error {
 			metrics.ReqTime.WithLabelValues(ExeutorSuccessReceiveTask).Observe(time.Since(startTime).Seconds())
 		}
 	case *gfsptask.GfSpGCObjectTask:
-		metrics.ExecutorGCObjectTaskCounter.WithLabelValues(e.Name()).Inc()
 		atomic.AddInt64(&e.doingGCObjectTaskCnt, 1)
 		defer atomic.AddInt64(&e.doingGCObjectTaskCnt, -1)
 		e.HandleGCObjectTask(ctx, t)
 	case *gfsptask.GfSpGCZombiePieceTask:
-		metrics.ExecutorGCZombieTaskCounter.WithLabelValues(e.Name()).Inc()
 		atomic.AddInt64(&e.doingGCZombiePieceTaskCnt, 1)
 		defer atomic.AddInt64(&e.doingGCZombiePieceTaskCnt, -1)
 		e.HandleGCZombiePieceTask(ctx, t)
 	case *gfsptask.GfSpGCMetaTask:
-		metrics.ExecutorGCMetaTaskCounter.WithLabelValues(e.Name()).Inc()
 		atomic.AddInt64(&e.doingGCGCMetaTaskCnt, 1)
 		defer atomic.AddInt64(&e.doingGCGCMetaTaskCnt, -1)
 		e.HandleGCMetaTask(ctx, t)
 	case *gfsptask.GfSpRecoverPieceTask:
-		metrics.ExecutorRecoveryTaskCounter.WithLabelValues(e.Name()).Inc()
 		atomic.AddInt64(&e.doingRecoveryPieceTaskCnt, 1)
 		defer atomic.AddInt64(&e.doingRecoveryPieceTaskCnt, 1)
 		e.HandleRecoverPieceTask(ctx, t)
@@ -246,7 +239,7 @@ func (e *ExecuteModular) ReportTask(
 			metrics.ReqTime.WithLabelValues(ExeutorSuccessReportTask).Observe(time.Since(startTime).Seconds())
 		}
 	}()
-	
+
 	err = e.baseApp.GfSpClient().ReportTask(ctx, task)
 	log.CtxDebugw(ctx, "finish to report task", "task_info", task.Info(), "error", err)
 	return err

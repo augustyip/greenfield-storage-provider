@@ -62,6 +62,16 @@ func (e *ExecuteModular) HandleSealObjectTask(ctx context.Context, task coretask
 
 func (e *ExecuteModular) sealObject(ctx context.Context, task coretask.ObjectTask, sealMsg *storagetypes.MsgSealObject) error {
 	var err error
+	startTime := time.Now()
+	defer func() {
+		if err != nil {
+			metrics.ExecutorCounter.WithLabelValues(ExeutorFailureSealObject).Inc()
+			metrics.ExecutorTime.WithLabelValues(ExeutorFailureSealObject).Observe(time.Since(startTime).Seconds())
+		} else {
+			metrics.ExecutorCounter.WithLabelValues(ExeutorSuccessSealObject).Inc()
+			metrics.ExecutorTime.WithLabelValues(ExeutorSuccessSealObject).Observe(time.Since(startTime).Seconds())
+		}
+	}()
 	for retry := int64(0); retry <= task.GetMaxRetry(); retry++ {
 		e.baseApp.GfSpDB().InsertUploadEvent(task.GetObjectInfo().Id.Uint64(), spdb.ExecutorBeginSealTx, task.Key().String())
 		err = e.baseApp.GfSpClient().SealObject(ctx, sealMsg)
@@ -473,11 +483,6 @@ func (e *ExecuteModular) doRecoveryPiece(ctx context.Context, rTask coretask.Rec
 		signature []byte
 		pieceData []byte
 	)
-	startTime := time.Now()
-	defer func() {
-		metrics.RecoverPieceTimeHistogram.WithLabelValues(e.Name()).Observe(time.Since(startTime).Seconds())
-	}()
-
 	signature, err = e.baseApp.GfSpClient().SignRecoveryTask(ctx, rTask)
 	if err != nil {
 		log.CtxErrorw(ctx, "failed to sign recovery task", "object", rTask.GetObjectInfo().GetObjectName(), "error", err)

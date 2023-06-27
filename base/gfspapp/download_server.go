@@ -33,8 +33,6 @@ func (g *GfSpBaseApp) GfSpDownloadObject(ctx context.Context, req *gfspserver.Gf
 		return &gfspserver.GfSpDownloadObjectResponse{Err: ErrDownloadExhaustResource}, nil
 	}
 	defer span.Done()
-	metrics.DownloadObjectSizeHistogram.WithLabelValues(
-		g.downloader.Name()).Observe(float64(downloadObjectTask.GetSize()))
 	data, err := g.OnDownloadObjectTask(ctx, downloadObjectTask)
 	log.CtxDebugw(ctx, "finished to download object", "len", len(data), "error", err)
 	return &gfspserver.GfSpDownloadObjectResponse{
@@ -79,8 +77,6 @@ func (g *GfSpBaseApp) GfSpDownloadPiece(ctx context.Context, req *gfspserver.GfS
 		return &gfspserver.GfSpDownloadPieceResponse{Err: ErrDownloadExhaustResource}, nil
 	}
 	defer span.Done()
-	metrics.DownloadPieceSizeHistogram.WithLabelValues(
-		g.downloader.Name()).Observe(float64(downloadPieceTask.GetSize()))
 	data, err := g.OnDownloadPieceTask(ctx, downloadPieceTask)
 	log.CtxDebugw(ctx, "finished to download piece", "len", len(data), "error", err)
 	return &gfspserver.GfSpDownloadPieceResponse{
@@ -136,8 +132,6 @@ func (g *GfSpBaseApp) GfSpGetChallengeInfo(ctx context.Context, req *gfspserver.
 		return &gfspserver.GfSpGetChallengeInfoResponse{Err: ErrDownloadExhaustResource}, nil
 	}
 	defer span.Done()
-	metrics.ChallengePieceSizeHistogram.WithLabelValues(g.downloader.Name()).Observe(
-		float64(challengePieceTask.EstimateLimit().GetMemoryLimit()))
 	integrity, checksums, data, err := g.OnChallengePieceTask(ctx, challengePieceTask)
 	log.CtxDebugw(ctx, "finished to get object challenge info", "len", len(data), "error", err)
 	return &gfspserver.GfSpGetChallengeInfoResponse{

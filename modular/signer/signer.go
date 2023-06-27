@@ -3,7 +3,6 @@ package signer
 import (
 	"context"
 	"net/http"
-	"time"
 
 	sdkmath "cosmossdk.io/math"
 	"github.com/bnb-chain/greenfield-common/go/hash"
@@ -15,7 +14,6 @@ import (
 	"github.com/bnb-chain/greenfield-storage-provider/core/module"
 	"github.com/bnb-chain/greenfield-storage-provider/core/rcmgr"
 	"github.com/bnb-chain/greenfield-storage-provider/core/task"
-	"github.com/bnb-chain/greenfield-storage-provider/pkg/metrics"
 )
 
 var (
@@ -137,12 +135,8 @@ func (s *SignModular) SignP2PPongMsg(ctx context.Context, pong *gfspp2p.GfSpPong
 
 func (s *SignModular) SealObject(ctx context.Context, object *storagetypes.MsgSealObject) error {
 	var (
-		err       error
-		startTime = time.Now()
+		err error
 	)
-	defer func() {
-		metrics.SealObjectTimeHistogram.WithLabelValues(s.Name()).Observe(time.Since(startTime).Seconds())
-	}()
 	_, err = s.client.SealObject(ctx, SignSeal, object)
 	return err
 }
@@ -150,35 +144,11 @@ func (s *SignModular) SealObject(ctx context.Context, object *storagetypes.MsgSe
 func (s *SignModular) RejectUnSealObject(
 	ctx context.Context,
 	rejectObject *storagetypes.MsgRejectSealObject) error {
-	var (
-		err       error
-		startTime = time.Now()
-	)
-	defer func() {
-		metrics.RejectUnSealObjectTimeHistogram.WithLabelValues(s.Name()).Observe(time.Since(startTime).Seconds())
-		if err != nil {
-			metrics.RejectUnSealObjectSucceedCounter.WithLabelValues(s.Name()).Inc()
-		} else {
-			metrics.RejectUnSealObjectFailedCounter.WithLabelValues(s.Name()).Inc()
-		}
-	}()
-	_, err = s.client.RejectUnSealObject(ctx, SignSeal, rejectObject)
+	_, err := s.client.RejectUnSealObject(ctx, SignSeal, rejectObject)
 	return err
 }
 
 func (s *SignModular) DiscontinueBucket(ctx context.Context, bucket *storagetypes.MsgDiscontinueBucket) error {
-	var (
-		err       error
-		startTime = time.Now()
-	)
-	defer func() {
-		metrics.DiscontinueBucketTimeHistogram.WithLabelValues(s.Name()).Observe(time.Since(startTime).Seconds())
-		if err != nil {
-			metrics.DiscontinueBucketSucceedCounter.WithLabelValues(s.Name()).Inc()
-		} else {
-			metrics.DiscontinueBucketFailedCounter.WithLabelValues(s.Name()).Inc()
-		}
-	}()
-	_, err = s.client.DiscontinueBucket(ctx, SignGc, bucket)
+	_, err := s.client.DiscontinueBucket(ctx, SignGc, bucket)
 	return err
 }

@@ -55,6 +55,17 @@ const (
 
 	ExeutorSuccessReportTask = "executor_report_task_to_manager_success"
 	ExeutorFailureReportTask = "executor_report_task_to_manager_failure"
+
+	ExeutorSuccessP2P                = "executor_p2p_success"
+	ExeutorFailureP2P                = "executor_p2p_failure"
+	ExeutorSuccessReplicateAllPiece  = "executor_replicate_all_piece_success"
+	ExeutorFailureReplicateAllPiece  = "executor_replicate_all_piece_failure"
+	ExeutorSuccessReplicateOnePiece  = "executor_replicate_one_piece_success"
+	ExeutorFailureReplicateOnePiece  = "executor_replicate_one_piece_failure"
+	ExeutorSuccessDoneReplicatePiece = "executor_done_replicate_piece_success"
+	ExeutorFailureDoneReplicatePiece = "executor_done_replicate_piece_failure"
+	ExeutorSuccessSealObject         = "executor_seal_object_success"
+	ExeutorFailureSealObject         = "executor_seal_object_failure"
 )
 
 func NewExecuteModular(app *gfspapp.GfSpBaseApp, cfg *gfspconfig.GfSpConfig) (coremodule.Modular, error) {

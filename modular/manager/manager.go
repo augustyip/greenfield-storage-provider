@@ -145,7 +145,7 @@ func (m *ManageModular) eventLoop(ctx context.Context) {
 			task.InitGCObjectTask(m.baseApp.TaskPriority(task), start, end, m.baseApp.TaskTimeout(task, 0))
 			err = m.gcObjectQueue.Push(task)
 			if err == nil {
-				metrics.GCBlockNumberGauge.WithLabelValues(m.Name()).Set(float64(m.gcBlockHeight))
+				metrics.GCBlockNumberGauge.WithLabelValues(ManagerGCBlockNumber).Set(float64(m.gcBlockHeight))
 				m.gcBlockHeight = end + 1
 
 				if err = m.baseApp.GfSpDB().InsertGCObjectProgress(task.Key().String(), &spdb.GCObjectMeta{
@@ -161,7 +161,7 @@ func (m *ManageModular) eventLoop(ctx context.Context) {
 			if !m.discontinueBucketEnabled {
 				continue
 			}
-			m.discontinueBuckets(ctx)
+			go m.discontinueBuckets(ctx)
 			log.Infow("finished to discontinue buckets", "time", time.Now())
 		}
 	}
@@ -514,7 +514,6 @@ func (m *ManageModular) syncConsensusInfo(ctx context.Context) {
 }
 
 func (m *ManageModular) RejectUnSealObject(ctx context.Context, object *storagetypes.ObjectInfo) error {
-	metrics.SealObjectFailedCounter.WithLabelValues(m.Name()).Inc()
 	rejectUnSealObjectMsg := &storagetypes.MsgRejectSealObject{
 		BucketName: object.GetBucketName(),
 		ObjectName: object.GetObjectName(),

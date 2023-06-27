@@ -43,8 +43,6 @@ func (g *GfSpBaseApp) GfSpUploadObject(stream gfspserver.GfSpUploadService_GfSpU
 		}
 		if task != nil {
 			g.GfSpDB().InsertUploadEvent(task.GetObjectInfo().Id.Uint64(), corespdb.UploaderEndReceiveData, task.Key().String())
-			metrics.UploadObjectSizeHistogram.WithLabelValues(g.uploader.Name()).Observe(
-				float64(task.GetObjectInfo().GetPayloadSize()))
 			g.uploader.PostUploadObject(ctx, task)
 			log.CtxDebugw(ctx, "finish to receive object stream data", "info", task.Info(),
 				"receive_size", receiveSize, "error", err)
@@ -166,8 +164,6 @@ func (g *GfSpBaseApp) GfSpResumableUploadObject(stream gfspserver.GfSpUploadServ
 			span.Done()
 		}
 		if task != nil {
-			metrics.UploadObjectSizeHistogram.WithLabelValues(g.uploader.Name()).Observe(
-				float64(task.GetObjectInfo().GetPayloadSize()))
 			g.uploader.PostResumableUploadObject(ctx, task)
 			log.CtxDebugw(ctx, "finish to receive object stream data", "info", task.Info(),
 				"receive_size", receiveSize, "error", err)
