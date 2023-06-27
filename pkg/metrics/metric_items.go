@@ -11,8 +11,27 @@ var MetricsItems = []prometheus.Collector{
 	// Grpc metrics category
 	DefaultGRPCServerMetrics,
 	DefaultGRPCClientMetrics,
-	// Http metrics category
 	DefaultHTTPServerMetrics,
+
+	// TaskQueue metrics category
+	QueueSizeGauge,
+	QueueCapGauge,
+	TaskInQueueTime,
+
+	// PieceStore metrics category
+	PieceStoreTime,
+	PieceStoreCounter,
+	PieceStoreUsageAmountGauge,
+
+	// SPDB metrics category
+	SPDBTime,
+	SPDBCounter,
+
+	// Greenfield metrics category
+	GnfdChainTime,
+	GnfdChainCounter,
+	BlockHeightLagGauge,
+
 	// Perf workflow category
 	PerfUploadTimeHistogram,
 	PerfGetApprovalTimeHistogram,
@@ -20,10 +39,6 @@ var MetricsItems = []prometheus.Collector{
 	PerfReceivePieceTimeHistogram,
 	PerfGetObjectTimeHistogram,
 	PerfChallengeTimeHistogram,
-	// TaskQueue metrics category
-	QueueSizeGauge,
-	QueueCapGauge,
-	TaskInQueueTimeHistogram,
 	// PieceStore metrics category
 	PutPieceTimeHistogram,
 	PutPieceTotalNumberCounter,
@@ -81,14 +96,15 @@ var MetricsItems = []prometheus.Collector{
 	DiscontinueBucketTimeHistogram,
 	DiscontinueBucketSucceedCounter,
 	DiscontinueBucketFailedCounter,
-	// SPDB metrics category
-	SPDBTimeHistogram,
+	//// SPDB metrics category
+	//SPDBTimeHistogram,
 	// BlockSyncer metrics category
-	BlockHeightLagGauge,
-	// the greenfield chain metrics.
+	//BlockHeightLagGauge,
+	//// the greenfield chain metrics.
 	GnfdChainHistogram,
 }
 
+// basic metrics items
 var (
 	// DefaultGRPCServerMetrics defines default gRPC server metrics
 	DefaultGRPCServerMetrics = openmetrics.NewServerMetrics(openmetrics.WithServerHandlingTimeHistogram())
@@ -98,6 +114,63 @@ var (
 	// DefaultHTTPServerMetrics defines default HTTP server metrics
 	DefaultHTTPServerMetrics = metricshttp.NewServerMetrics()
 
+	// task queue metrics
+	QueueSizeGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "queue_size",
+		Help: "Track the task queue used size.",
+	}, []string{"queue_size"})
+	QueueCapGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "queue_capacity",
+		Help: "Track the task queue capacity.",
+	}, []string{"queue_capacity"})
+	TaskInQueueTime = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "task_in_queue_time",
+		Help:    "Track the task of alive time duration in queue from task is pushed.",
+		Buckets: prometheus.DefBuckets,
+	}, []string{"task_in_queue_time"})
+
+	// piece store metrics
+	PieceStoreTime = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "piece_store_time",
+		Help:    "Track the time of operating piece store.",
+		Buckets: prometheus.DefBuckets,
+	}, []string{"piece_store_time"})
+	PieceStoreCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "piece_store_counter",
+		Help: "Track total counter of operating piece store.",
+	}, []string{"piece_store_counter"})
+	PieceStoreUsageAmountGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "usage_amount_piece_store",
+		Help: "Track usage amount of piece store.",
+	}, []string{"usage_amount_piece_store"})
+
+	// spdb metrics
+	SPDBTime = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "sp_db_time",
+		Help:    "Track the time of operating spdb",
+		Buckets: prometheus.DefBuckets,
+	}, []string{"sp_db_time"})
+	SPDBCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "sp_db_counter",
+		Help: "Track total counter of operating spdb.",
+	}, []string{"sp_db_number"})
+
+	GnfdChainTime = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "gnfd_chain_time",
+		Help:    "Track the time of greenfield chain api costs.",
+		Buckets: prometheus.DefBuckets,
+	}, []string{"gnfd_chain_time"})
+	GnfdChainCounter = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "gnfd_chain_counter",
+		Help: "Track the counter of greenfield chain api.",
+	}, []string{"gnfd_chain_counter"})
+	BlockHeightLagGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "block_syncer_height",
+		Help: "Current block number of block syncer progress.",
+	}, []string{"block_syncer_height"})
+)
+
+var (
 	// PerfUploadTimeHistogram is used to perf upload workflow.
 	PerfUploadTimeHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    "perf_upload_time",
@@ -130,21 +203,6 @@ var (
 		Help:    "Track challenge piece workflow costs.",
 		Buckets: prometheus.DefBuckets,
 	}, []string{"perf_challenge_piece_time"})
-
-	// task queue metrics
-	QueueSizeGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "queue_size",
-		Help: "Track the task queue using size.",
-	}, []string{"queue_size"})
-	QueueCapGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "queue_capacity",
-		Help: "Track the task queue capacity.",
-	}, []string{"queue_capacity"})
-	TaskInQueueTimeHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
-		Name:    "task_in_queue_time",
-		Help:    "Track the task of alive time duration in queue from task is created.",
-		Buckets: prometheus.DefBuckets,
-	}, []string{"task_in_queue_time"})
 
 	// piece store metrics
 	PutPieceTimeHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
@@ -396,19 +454,6 @@ var (
 		Name: "discontinue_bucket_failure",
 		Help: "Track discontinue bucket failure total number.",
 	}, []string{"discontinue_bucket_failure"})
-
-	// spdb metrics
-	SPDBTimeHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
-		Name:    "sp_db_handling_seconds",
-		Help:    "Track the latency for spdb requests",
-		Buckets: prometheus.DefBuckets,
-	}, []string{"sp_db_handling_seconds"})
-
-	// BlockHeightLagGauge records the current block height of block syncer service
-	BlockHeightLagGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "block_syncer_height",
-		Help: "Current block number of block syncer progress.",
-	}, []string{"block_syncer_height"})
 
 	// GnfdChainHistogram is used to record greenfield chain cost.
 	GnfdChainHistogram = prometheus.NewHistogramVec(prometheus.HistogramOpts{
