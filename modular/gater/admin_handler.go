@@ -191,7 +191,7 @@ func (g *GateModular) getChallengeInfoHandler(w http.ResponseWriter, r *http.Req
 		} else {
 			reqCtx.SetHttpCode(http.StatusOK)
 		}
-		log.CtxDebugw(reqCtx.Context(), reqCtx.String())
+		//log.CtxDebugw(reqCtx.Context(), reqCtx.String())
 		metrics.PerfChallengeTimeHistogram.WithLabelValues("challenge_total_time").Observe(time.Since(startTime).Seconds())
 	}()
 

@@ -102,9 +102,9 @@ func (t *GfSpTQueue) PopByKey(key coretask.TKey) coretask.Task {
 func (t *GfSpTQueue) Push(task coretask.Task) error {
 	t.mux.Lock()
 	defer t.mux.Unlock()
-	if t.has(task.Key()) {
-		return ErrTaskRepeated
-	}
+	//if t.has(task.Key()) {
+	//	return ErrTaskRepeated
+	//}
 	if t.exceed() {
 		if t.gcFunc == nil {
 			log.Warnw("queue exceed", "queue", t.name, "cap", t.cap, "len", len(t.tasks))

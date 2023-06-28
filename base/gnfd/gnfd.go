@@ -10,6 +10,7 @@ import (
 	"github.com/bnb-chain/greenfield-storage-provider/base/types/gfsperrors"
 	"github.com/bnb-chain/greenfield-storage-provider/core/consensus"
 	"github.com/bnb-chain/greenfield-storage-provider/pkg/log"
+	jsonclient "github.com/bnb-chain/greenfield-storage-provider/util/rpc/jsonrpc/client"
 	chainClient "github.com/bnb-chain/greenfield/sdk/client"
 	chttp "github.com/cometbft/cometbft/rpc/client/http"
 )
@@ -65,7 +66,7 @@ func NewGnfd(cfg *GnfdChainConfig) (*Gnfd, error) {
 	var clients []*GreenfieldClient
 	var wsClients []*chttp.HTTP
 	for _, address := range cfg.ChainAddress {
-		cc, err := chainClient.NewGreenfieldClient(address, cfg.ChainID)
+		cc, err := chainClient.NewCustomGreenfieldClient(address, cfg.ChainID, jsonclient.DefaultHTTPClient)
 		if err != nil {
 			return nil, err
 		}

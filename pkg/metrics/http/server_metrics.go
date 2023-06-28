@@ -122,7 +122,10 @@ func (m *ServerMetrics) InstrumentationHandler(next http.Handler) http.Handler {
 		code := wd.Status()
 		handlerName := mux.CurrentRoute(r).GetName()
 
-		m.serverReqTotalCounter.WithLabelValues(handlerName, method, code).Inc()
+		if wd.statusCode == http.StatusOK {
+			m.serverReqTotalCounter.WithLabelValues(handlerName, method, code).Inc()
+		}
+
 		gauge := m.serverReqInflightGauge.WithLabelValues(handlerName, method)
 		gauge.Inc()
 		defer gauge.Dec()

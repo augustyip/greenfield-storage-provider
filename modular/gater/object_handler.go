@@ -11,7 +11,6 @@ import (
 	"time"
 
 	corespdb "github.com/bnb-chain/greenfield-storage-provider/core/spdb"
-	coretask "github.com/bnb-chain/greenfield-storage-provider/core/task"
 	"github.com/bnb-chain/greenfield-storage-provider/modular/downloader"
 	"github.com/bnb-chain/greenfield-storage-provider/pkg/metrics"
 	"github.com/bnb-chain/greenfield/types/s3util"
@@ -352,15 +351,16 @@ func (g *GateModular) getObjectHandler(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		reqCtx.Cancel()
 		if err != nil {
-			log.CtxDebugw(reqCtx.Context(), "get object error")
 			reqCtx.SetError(gfsperrors.MakeGfSpError(err))
 			reqCtx.SetHttpCode(int(gfsperrors.MakeGfSpError(err).GetHttpStatusCode()))
 			MakeErrorResponse(w, gfsperrors.MakeGfSpError(err))
+			log.CtxDebugw(reqCtx.Context(), "GetObject Failed", "err", err.Error())
 		} else {
 			reqCtx.SetHttpCode(http.StatusOK)
+			duration := time.Since(getObjectStartTime).Seconds()
+			metrics.PerfGetObjectTimeHistogram.WithLabelValues("get_object_total_time").Observe(duration)
 		}
-		log.CtxDebugw(reqCtx.Context(), reqCtx.String())
-		metrics.PerfGetObjectTimeHistogram.WithLabelValues("get_object_total_time").Observe(time.Since(getObjectStartTime).Seconds())
+		//log.CtxDebugw(reqCtx.Context(), reqCtx.String())
 	}()
 	reqCtx, reqCtxErr = NewRequestContext(r, g)
 	// check the object permission whether allow public read.
@@ -466,50 +466,13 @@ func (g *GateModular) getObjectHandler(w http.ResponseWriter, r *http.Request) {
 			enableCheck, reqCtx.Account(), uint64(highOffset-lowOffset+1), pInfo.SegmentPieceKey, pInfo.Offset,
 			pInfo.Length, g.baseApp.TaskTimeout(task, uint64(pieceTask.GetSize())), g.baseApp.TaskMaxRetry(task))
 		getSegmentTime := time.Now()
-		pieceData, err := g.baseApp.GfSpClient().GetPiece(reqCtx.Context(), pieceTask)
-		metrics.PerfGetObjectTimeHistogram.WithLabelValues("get_object_segment_data_time").Observe(time.Since(getSegmentTime).Seconds())
-		if err != nil {
-			log.CtxErrorw(reqCtx.Context(), "failed to download piece", "error", err)
-			// TODO pieceStore should return exact error to indicate if the piece data lost
-			// for now, if get piece fail, it is suspected that the piece has been lost
-			// the recovery task will recovery the total segment (ignoring the offset and length of piece info)
-			log.CtxDebugw(reqCtx.Context(), "recovery task key:", "key:", pInfo.SegmentPieceKey)
-			segmentIndex, parseErr := g.baseApp.PieceOp().ParseSegmentIdx(pInfo.SegmentPieceKey)
-			if parseErr != nil {
-				// no need to return recovery error to user
-				log.CtxErrorw(reqCtx.Context(), "fail to parse recovery segment index", "error", err)
-				return
-			}
-			segSize := g.baseApp.PieceOp().SegmentPieceSize(objectInfo.PayloadSize, segmentIndex, params.GetMaxSegmentSize())
-			recoveryTask := &gfsptask.GfSpRecoverPieceTask{}
-			recoveryTask.InitRecoverPieceTask(task.GetObjectInfo(), task.GetStorageParams(),
-				coretask.DefaultLargerTaskPriority,
-				segmentIndex,
-				int32(-1),
-				uint64(segSize),
-				g.baseApp.TaskTimeout(recoveryTask, task.GetStorageParams().GetMaxSegmentSize()),
-				3)
-
-			g.baseApp.GfSpClient().ReportTask(reqCtx.Context(), recoveryTask)
-			log.CtxDebugw(reqCtx.Context(), "recovery task run successfully", "recovery object", objectInfo.ObjectName, "segment index:", idx)
-
-			reoverData, err := g.tryDownloadAfterRecovery(reqCtx.Context(), pieceTask)
-			if err != nil {
-				log.CtxErrorw(reqCtx.Context(), "fail to get piece after recovery task submitted", "error", err)
-				return
-			}
-			// the recovery segment is a total segment data,
-			// if the offset and length meta is set, then it is needed to adjust the piece data with the meta
-			if pInfo.Offset > 0 {
-				reoverData = reoverData[pInfo.Offset:]
-			}
-
-			if pInfo.Offset+pInfo.Length < uint64(segSize) {
-				reoverData = reoverData[:pInfo.Length]
-				log.CtxErrorw(reqCtx.Context(), "adjust the piece data", "len:", len(reoverData))
-			}
-			w.Write(reoverData)
-			continue
+		pieceData, pieceErr := g.baseApp.GfSpClient().GetPiece(reqCtx.Context(), pieceTask)
+		if pieceErr != nil {
+			log.CtxErrorw(reqCtx.Context(), "failed to download piece", "error", pieceErr)
+			err = pieceErr
+			return
+		} else {
+			metrics.PerfGetObjectTimeHistogram.WithLabelValues("get_object_segment_data_time").Observe(time.Since(getSegmentTime).Seconds())
 		}
 
 		writeTime := time.Now()
