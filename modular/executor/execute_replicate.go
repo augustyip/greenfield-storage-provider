@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"fmt"
 	"math"
 	"sync"
 	"time"
@@ -43,8 +44,10 @@ func (e *ExecuteModular) HandleReplicatePieceTask(ctx context.Context, task core
 	rAppTask.InitApprovalReplicatePieceTask(task.GetObjectInfo(), task.GetStorageParams(),
 		e.baseApp.TaskPriority(rAppTask), e.baseApp.OperatorAddress())
 	askReplicateApprovalTime := time.Now()
+	task.AppendLog("executor-begin-p2p")
 	approvals, err = e.AskReplicatePieceApproval(ctx, rAppTask, int(low),
 		int(high), e.askReplicateApprovalTimeout)
+	task.AppendLog("executor-end-p2p")
 	metrics.PerfPutObjectTime.WithLabelValues("background_ask_p2p_approval_cost").Observe(time.Since(askReplicateApprovalTime).Seconds())
 	metrics.PerfPutObjectTime.WithLabelValues("background_ask_p2p_approval_end").Observe(time.Since(startReplicateTime).Seconds())
 	if err != nil {
@@ -57,15 +60,18 @@ func (e *ExecuteModular) HandleReplicatePieceTask(ctx context.Context, task core
 		metrics.ExecutorTime.WithLabelValues(ExeutorSuccessP2P).Observe(time.Since(askReplicateApprovalTime).Seconds())
 	}
 	replicatePieceTotalTime := time.Now()
+	task.AppendLog("executor-begin-replicate-object")
 	err = e.handleReplicatePiece(ctx, task, approvals)
 	metrics.PerfPutObjectTime.WithLabelValues("background_replicate_object_cost").Observe(time.Since(replicatePieceTotalTime).Seconds())
 	metrics.PerfPutObjectTime.WithLabelValues("background_task_replicate_object_end").Observe(time.Since(startReplicateTime).Seconds())
 	if err != nil {
+		task.AppendLog(fmt.Sprintf("executor-begin-replicate-object-error%s", err.Error()))
 		log.CtxErrorw(ctx, "failed to replicate piece", "error", err)
 		metrics.ExecutorCounter.WithLabelValues(ExeutorFailureReplicateAllPiece).Inc()
 		metrics.ExecutorTime.WithLabelValues(ExeutorFailureReplicateAllPiece).Observe(time.Since(replicatePieceTotalTime).Seconds())
 		return
 	} else {
+		task.AppendLog(fmt.Sprintf("executor-begin-replicate-object"))
 		metrics.ExecutorCounter.WithLabelValues(ExeutorSuccessReplicateAllPiece).Inc()
 		metrics.ExecutorTime.WithLabelValues(ExeutorSuccessReplicateAllPiece).Observe(time.Since(replicatePieceTotalTime).Seconds())
 	}
@@ -230,12 +236,15 @@ func (e *ExecuteModular) handleReplicatePiece(ctx context.Context, rTask coretas
 func (e *ExecuteModular) doReplicatePiece(ctx context.Context, waitGroup *sync.WaitGroup, rTask coretask.ReplicatePieceTask,
 	approval coretask.ApprovalReplicatePieceTask, replicateIdx uint32, pieceIdx uint32, data []byte) (err error) {
 	var signature []byte
+	rTask.AppendLog(fmt.Sprintf("executor-begin-replicate-piece-sidx:%d-ridx-%d", pieceIdx, replicateIdx))
 	startTime := time.Now()
 	defer func() {
 		if err != nil {
+			rTask.AppendLog(fmt.Sprintf("executor-end-replicate-piece-sidx:%d-ridx-%d-error:%s", pieceIdx, replicateIdx, err.Error()))
 			metrics.ExecutorCounter.WithLabelValues(ExeutorFailureReplicateOnePiece).Inc()
 			metrics.ExecutorTime.WithLabelValues(ExeutorFailureReplicateOnePiece).Observe(time.Since(startTime).Seconds())
 		} else {
+			rTask.AppendLog(fmt.Sprintf("executor-end-replicate-piece-sidx:%d-ridx-%d", pieceIdx, replicateIdx))
 			metrics.ExecutorCounter.WithLabelValues(ExeutorSuccessReplicateOnePiece).Inc()
 			metrics.ExecutorTime.WithLabelValues(ExeutorSuccessReplicateOnePiece).Observe(time.Since(startTime).Seconds())
 		}
@@ -279,12 +288,15 @@ func (e *ExecuteModular) doneReplicatePiece(ctx context.Context, rTask coretask.
 		signature     []byte
 		taskSignature []byte
 	)
+	rTask.AppendLog(fmt.Sprintf("executor-begin-done_replicate-piece-ridx-%d", replicateIdx))
 	startTime := time.Now()
 	defer func() {
 		if err != nil {
+			rTask.AppendLog(fmt.Sprintf("executor-begin-done_replicate-piece-ridx-%d-error:%s", replicateIdx, err.Error()))
 			metrics.ExecutorCounter.WithLabelValues(ExeutorFailureDoneReplicatePiece).Inc()
 			metrics.ExecutorTime.WithLabelValues(ExeutorFailureDoneReplicatePiece).Observe(time.Since(startTime).Seconds())
 		} else {
+			rTask.AppendLog(fmt.Sprintf("executor-begin-done_replicate-piece-ridx-%d", replicateIdx))
 			metrics.ExecutorCounter.WithLabelValues(ExeutorSuccessDoneReplicatePiece).Inc()
 			metrics.ExecutorTime.WithLabelValues(ExeutorSuccessDoneReplicatePiece).Observe(time.Since(startTime).Seconds())
 		}

@@ -24,13 +24,13 @@ const (
 	SpDBDataBase = "SP_DB_DATABASE"
 
 	// DefaultConnMaxLifetime defines the default max liveliness time of connection.
-	DefaultConnMaxLifetime = 60
+	DefaultConnMaxLifetime = 2048
 	// DefaultConnMaxIdleTime defines the default max idle time of connection.
-	DefaultConnMaxIdleTime = 30
+	DefaultConnMaxIdleTime = 2048
 	// DefaultMaxIdleConns defines the default max number of idle connections.
-	DefaultMaxIdleConns = 16
+	DefaultMaxIdleConns = 2048
 	// DefaultMaxOpenConns defines the default max number of open connections.
-	DefaultMaxOpenConns = 32
+	DefaultMaxOpenConns = 2048
 )
 
 var _ corespdb.SPDB = &SpDBImpl{}

@@ -2,6 +2,7 @@ package gfspapp
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"time"
@@ -105,6 +106,7 @@ func (g *GfSpBaseApp) GfSpUploadObject(stream gfspserver.GfSpUploadService_GfSpU
 					return
 				}
 				err = g.uploader.PreUploadObject(ctx, task)
+				task.AppendLog(fmt.Sprintf("uploader-prepare-upload-task-cost:%d", time.Now().Unix()-startTime.Unix()))
 				if err != nil {
 					log.CtxErrorw(ctx, "failed to pre upload object", "error", err)
 					pWrite.CloseWithError(err)

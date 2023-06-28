@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -48,6 +49,7 @@ func (e *ExecuteModular) HandleSealObjectTask(ctx context.Context, task coretask
 		task.SetError(ErrDanglingPointer)
 		return
 	}
+	task.AppendLog("executor-begin-handle-seal-task")
 	sealMsg := &storagetypes.MsgSealObject{
 		Operator:              e.baseApp.OperatorAddress(),
 		BucketName:            task.GetObjectInfo().GetBucketName(),
@@ -56,6 +58,7 @@ func (e *ExecuteModular) HandleSealObjectTask(ctx context.Context, task coretask
 		SecondarySpSignatures: task.GetSecondarySignatures(),
 	}
 	task.SetError(e.sealObject(ctx, task, sealMsg))
+	task.AppendLog("executor-end-handle-seal-task")
 	log.CtxDebugw(ctx, "finish to handle seal object task", "error", task.Error())
 }
 
@@ -74,25 +77,28 @@ func (e *ExecuteModular) sealObject(ctx context.Context, task coretask.ObjectTas
 	for retry := int64(0); retry <= task.GetMaxRetry(); retry++ {
 		err = e.baseApp.GfSpClient().SealObject(ctx, sealMsg)
 		if err != nil {
+			task.AppendLog(fmt.Sprintf("executor-seal-tx-failed-error:%s-retry:%d", err.Error(), retry))
 			log.CtxErrorw(ctx, "failed to seal object", "retry", retry,
 				"max_retry", task.GetMaxRetry(), "error", err)
 			time.Sleep(time.Duration(e.listenSealRetryTimeout) * time.Second)
 		} else {
+			task.AppendLog(fmt.Sprintf("executor-seal-tx-succeed-retry:%d", retry))
 			break
 		}
 	}
 	// even though signer return error, maybe seal on chain successfully because
 	// signer use the async mode, so ignore the error and listen directly
-	err = e.listenSealObject(ctx, task.GetObjectInfo())
+	err = e.listenSealObject(ctx, task, task.GetObjectInfo())
 	return err
 }
 
-func (e *ExecuteModular) listenSealObject(ctx context.Context, object *storagetypes.ObjectInfo) error {
+func (e *ExecuteModular) listenSealObject(ctx context.Context, task coretask.ObjectTask, object *storagetypes.ObjectInfo) error {
 	var err error
 	for retry := 0; retry < e.maxListenSealRetry; retry++ {
 		sealed, innerErr := e.baseApp.Consensus().ListenObjectSeal(ctx,
 			object.Id.Uint64(), e.listenSealTimeoutHeight)
 		if innerErr != nil {
+			task.AppendLog(fmt.Sprintf("executor-listen-seal-failed-error:%s-retry:%d", err.Error(), retry))
 			log.CtxErrorw(ctx, "failed to listen object seal", "retry", retry,
 				"max_retry", e.maxListenSealRetry, "error", err)
 			time.Sleep(time.Duration(e.listenSealRetryTimeout) * time.Second)
@@ -100,11 +106,13 @@ func (e *ExecuteModular) listenSealObject(ctx context.Context, object *storagety
 			continue
 		}
 		if !sealed {
+			task.AppendLog(fmt.Sprintf("executor-listen-seal-failed(unseal)-retry:%d", retry))
 			log.CtxErrorw(ctx, "failed to seal object on chain", "retry", retry,
 				"max_retry", e.maxListenSealRetry, "error", err)
 			err = ErrUnsealed
 			continue
 		}
+		task.AppendLog(fmt.Sprintf("executor-listen-seal-succeed-retry:%d", retry))
 		err = nil
 		break
 	}
@@ -120,7 +128,7 @@ func (e *ExecuteModular) HandleReceivePieceTask(ctx context.Context, task coreta
 		err           error
 		onChainObject *storagetypes.ObjectInfo
 	)
-	err = e.listenSealObject(ctx, task.GetObjectInfo())
+	err = e.listenSealObject(ctx, task, task.GetObjectInfo())
 	if err == nil {
 		task.SetSealed(true)
 	}

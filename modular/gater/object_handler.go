@@ -102,6 +102,8 @@ func (g *GateModular) putObjectHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	task := &gfsptask.GfSpUploadObjectTask{}
 	task.InitUploadObjectTask(objectInfo, params, g.baseApp.TaskTimeout(task, objectInfo.GetPayloadSize()))
+	task.AppendLog(fmt.Sprintf("gateway-prepare-upload-task-cost:%d", time.Now().Unix()-uploadPrimaryStartTime.Unix()))
+	task.AppendLog("gateway-create-upload-task")
 	ctx := log.WithValue(reqCtx.Context(), log.CtxKeyTask, task.Key().String())
 	uploadDataTime := time.Now()
 	err = g.baseApp.GfSpClient().UploadObject(ctx, task, r.Body)
