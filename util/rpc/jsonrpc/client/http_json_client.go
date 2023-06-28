@@ -120,7 +120,7 @@ func DefaultHTTPClient(remoteAddr string) (*http.Client, error) {
 		// Set to true to prevent GZIP-bomb DoS attacks
 		DisableCompression:  true,
 		DialContext:         dailContext,
-		MaxIdleConnsPerHost: 100,
+		MaxIdleConnsPerHost: 1000,
 		MaxConnsPerHost:     1000,
 		IdleConnTimeout:     90 * time.Second,
 	}
