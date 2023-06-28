@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	corespdb "github.com/bnb-chain/greenfield-storage-provider/core/spdb"
 	coretask "github.com/bnb-chain/greenfield-storage-provider/core/task"
 	"github.com/bnb-chain/greenfield-storage-provider/modular/downloader"
 	"github.com/bnb-chain/greenfield-storage-provider/pkg/metrics"
@@ -105,15 +104,12 @@ func (g *GateModular) putObjectHandler(w http.ResponseWriter, r *http.Request) {
 	task.InitUploadObjectTask(objectInfo, params, g.baseApp.TaskTimeout(task, objectInfo.GetPayloadSize()))
 	ctx := log.WithValue(reqCtx.Context(), log.CtxKeyTask, task.Key().String())
 	uploadDataTime := time.Now()
-	g.baseApp.GfSpDB().InsertUploadEvent(task.GetObjectInfo().Id.Uint64(), corespdb.GatewayBeginReceiveUpload, task.Key().String())
 	err = g.baseApp.GfSpClient().UploadObject(ctx, task, r.Body)
 	metrics.PerfPutObjectTime.WithLabelValues("gateway_put_object_data_cost").Observe(time.Since(uploadDataTime).Seconds())
 	metrics.PerfPutObjectTime.WithLabelValues("gateway_put_object_data_end").Observe(time.Since(uploadPrimaryStartTime).Seconds())
 	if err != nil {
-		g.baseApp.GfSpDB().InsertUploadEvent(task.GetObjectInfo().Id.Uint64(), corespdb.GatewayEndReceiveUpload, task.Key().String()+":"+err.Error())
 		log.CtxErrorw(ctx, "failed to upload payload data", "error", err)
 	}
-	g.baseApp.GfSpDB().InsertUploadEvent(task.GetObjectInfo().Id.Uint64(), corespdb.GatewayEndReceiveUpload, task.Key().String())
 	log.CtxDebugw(ctx, "succeed to upload payload data")
 }
 

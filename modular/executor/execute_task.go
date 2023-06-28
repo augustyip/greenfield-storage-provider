@@ -15,7 +15,6 @@ import (
 	"github.com/bnb-chain/greenfield-common/go/redundancy"
 	"github.com/bnb-chain/greenfield-storage-provider/base/types/gfsperrors"
 	"github.com/bnb-chain/greenfield-storage-provider/core/module"
-	"github.com/bnb-chain/greenfield-storage-provider/core/spdb"
 	coretask "github.com/bnb-chain/greenfield-storage-provider/core/task"
 	"github.com/bnb-chain/greenfield-storage-provider/modular/manager"
 	"github.com/bnb-chain/greenfield-storage-provider/modular/metadata/types"
@@ -73,15 +72,12 @@ func (e *ExecuteModular) sealObject(ctx context.Context, task coretask.ObjectTas
 		}
 	}()
 	for retry := int64(0); retry <= task.GetMaxRetry(); retry++ {
-		e.baseApp.GfSpDB().InsertUploadEvent(task.GetObjectInfo().Id.Uint64(), spdb.ExecutorBeginSealTx, task.Key().String())
 		err = e.baseApp.GfSpClient().SealObject(ctx, sealMsg)
 		if err != nil {
 			log.CtxErrorw(ctx, "failed to seal object", "retry", retry,
 				"max_retry", task.GetMaxRetry(), "error", err)
-			e.baseApp.GfSpDB().InsertUploadEvent(task.GetObjectInfo().Id.Uint64(), spdb.ExecutorEndSealTx, task.Key().String()+":"+err.Error())
 			time.Sleep(time.Duration(e.listenSealRetryTimeout) * time.Second)
 		} else {
-			e.baseApp.GfSpDB().InsertUploadEvent(task.GetObjectInfo().Id.Uint64(), spdb.ExecutorEndSealTx, task.Key().String())
 			break
 		}
 	}
@@ -94,11 +90,9 @@ func (e *ExecuteModular) sealObject(ctx context.Context, task coretask.ObjectTas
 func (e *ExecuteModular) listenSealObject(ctx context.Context, object *storagetypes.ObjectInfo) error {
 	var err error
 	for retry := 0; retry < e.maxListenSealRetry; retry++ {
-		e.baseApp.GfSpDB().InsertUploadEvent(object.Id.Uint64(), spdb.ExecutorBeginConfirmSeal, "")
 		sealed, innerErr := e.baseApp.Consensus().ListenObjectSeal(ctx,
 			object.Id.Uint64(), e.listenSealTimeoutHeight)
 		if innerErr != nil {
-			e.baseApp.GfSpDB().InsertUploadEvent(object.Id.Uint64(), spdb.ExecutorEndConfirmSeal, "err:"+innerErr.Error())
 			log.CtxErrorw(ctx, "failed to listen object seal", "retry", retry,
 				"max_retry", e.maxListenSealRetry, "error", err)
 			time.Sleep(time.Duration(e.listenSealRetryTimeout) * time.Second)
@@ -106,13 +100,11 @@ func (e *ExecuteModular) listenSealObject(ctx context.Context, object *storagety
 			continue
 		}
 		if !sealed {
-			e.baseApp.GfSpDB().InsertUploadEvent(object.Id.Uint64(), spdb.ExecutorEndConfirmSeal, "unsealed")
 			log.CtxErrorw(ctx, "failed to seal object on chain", "retry", retry,
 				"max_retry", e.maxListenSealRetry, "error", err)
 			err = ErrUnsealed
 			continue
 		}
-		e.baseApp.GfSpDB().InsertUploadEvent(object.Id.Uint64(), spdb.ExecutorEndConfirmSeal, "sealed")
 		err = nil
 		break
 	}
